@@ -1,11 +1,9 @@
 import ij.IJ;
 import java.io.*;
-import java.io.BufferedWriter;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileWriter;
 import java.util.ArrayList;
-
+import com.drew.metadata.*;
+import com.drew.imaging.*;
+import com.drew.metadata.exif.ExifSubIFDDirectory;
 
 
 public class FilePairList extends ArrayList<FilePair>{
@@ -15,17 +13,22 @@ public class FilePairList extends ArrayList<FilePair>{
 
 	// Constructor from two File arrays, time offsets and acceptable time difference
 	FilePairList(File[] listFirst_Files, File[] listSecondFiles, long offset, double acceptableDifference) {
-		//ArrayList<FilePair> filePairs = new ArrayList<FilePair>();
 		for (int i = 0; i < listSecondFiles.length; i++) { 
 			if (listSecondFiles[i].isFile()) { 
 		        long timeDiff;
 		        long bestTimeDiff;
+		        long timeFirstFile = 0;
+		        long timeSecondFile = 0;
 		        String matchingFirst = null;
 		        // Find closest matching file last modified time
 		        for (int k = 0; k < listFirst_Files.length; k++) {
-		           bestTimeDiff=999999999;
+		        	timeFirstFile = getExifTime(listFirst_Files[k]);
+		        	if (timeFirstFile == 0) return;
+		        	bestTimeDiff=999999999;
 		        	if (listFirst_Files[k].isFile()) {
-		               timeDiff = Math.abs(listSecondFiles[i].lastModified() - (listFirst_Files[k].lastModified() + offset));
+		        		timeSecondFile = getExifTime(listSecondFiles[i]);
+		        		if (timeSecondFile == 0) return;
+		        		timeDiff = Math.abs(timeSecondFile - (timeFirstFile + offset));
 		               if (timeDiff < bestTimeDiff) {
 		             	  bestTimeDiff = timeDiff;
 		             	  matchingFirst = listFirst_Files[k].getAbsolutePath();
@@ -40,7 +43,6 @@ public class FilePairList extends ArrayList<FilePair>{
 		    }    
 		}
 		this.trimToSize();
-//		this.filePairs = filePairs;
 	}
 	
 	// Constructor from a text file
@@ -64,16 +66,6 @@ public class FilePairList extends ArrayList<FilePair>{
 		this.trimToSize();	
 	}
 	
-	// Methods
-//	ArrayList<FilePair> getFilePairs() {
-//		return this.filePairs;
-//	}
-	
-//	FilePairList add(FilePair filePair) {
-//		this.add(filePair);
-//		return this;
-//	}
-	
 	// Write contents of FilePairList to a file
 	void writeFilePairs(String dir, String fileName) {      
 		try { 
@@ -82,8 +74,6 @@ public class FilePairList extends ArrayList<FilePair>{
 			for (FilePair photoPair : this) {
 				bw.write(photoPair.getFirst()+", "+photoPair.getSecond()+"\n");
 			}
-
-			//bw.write("end");
 			bw.close();
 			IJ.showStatus("File with matching pairs created");
 		} 
@@ -91,5 +81,35 @@ public class FilePairList extends ArrayList<FilePair>{
 		IJ.error("Error writing file pairs", e.getMessage());
 		return;
 		}
+	}
+	
+	// Get the original image date from the EXIF tag
+	long getExifTime(File file){
+		long time = 0;
+		boolean usingExif = false;
+		try {
+			Metadata metadata = ImageMetadataReader.readMetadata(file);
+			ExifSubIFDDirectory directory = metadata.getDirectory(ExifSubIFDDirectory.class);
+			boolean hasTag = directory.containsTag(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+			if (hasTag) {
+				time = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL).getTime();
+				usingExif = true;
+			}
+		} catch (ImageProcessingException e) {
+            String msg = e.getMessage();
+            if (msg==null) msg = ""+e;
+            IJ.error("Error extracting EXIF metadata from file \n" + file.getAbsolutePath()); 
+            usingExif = false;
+        } 
+		catch (IOException e) {
+			e.printStackTrace();
+			usingExif = false;;
+		}
+		if (!usingExif) {
+			file.lastModified();
+			usingExif = false;
+		}
+		
+		return time;
 	}
 }

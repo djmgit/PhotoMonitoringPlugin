@@ -65,7 +65,7 @@ public class Register_Images implements PlugIn, DialogListener {
 		dialog.addCheckbox("Output clipped visible image?", true);
 		dialog.addCheckbox("Create Color NDVI image?", true);
 		dialog.addCheckbox("Create floating point NDVI image?", true);	
-		dialog.addChoice("Channel from visible image to use for Red band to create NDVI", ndviBands, ndviBands[2]);
+		dialog.addChoice("Channel from visible image to use for Red band to create NDVI", ndviBands, ndviBands[0]);
 		dialog.addChoice("Channel from IR image to use for IR band to create NDVI", ndviBands, ndviBands[2]);
 		dialog.addChoice("Select output color table for color NDVI image", lutNames, lutNames[0]);
 		dialog.addDialogListener(this);

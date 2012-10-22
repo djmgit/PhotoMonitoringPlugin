@@ -74,7 +74,6 @@ public class List_Files implements PlugIn {
       visFolder = new File(visDirectory);
       IR_Folder = new File(IR_Directory);
       FilePairList photoPairs = new FilePairList(IR_Folder.listFiles(), visFolder.listFiles(), offset, acceptableDifference);
-      if (photoPairs == null) return;
            
       SaveDialog sd = new SaveDialog("Output text file", "matchedImages",".txt");
       String dir = sd.getDirectory();

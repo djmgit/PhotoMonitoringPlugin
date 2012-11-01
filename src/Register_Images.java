@@ -7,9 +7,9 @@ import ij.gui.DialogListener;
 import java.io.*;
 import java.util.*;
 import java.awt.*;
-import java.awt.Choice;
 import java.awt.image.*;
 import java.awt.AWTEvent;
+import java.lang.Math;
 
 public class Register_Images implements PlugIn, DialogListener {
 	static final int ADD=1, SUBTRACT=2, MULTIPLY=3, DIVIDE=4;
@@ -25,10 +25,15 @@ public class Register_Images implements PlugIn, DialogListener {
 		String preprocessingMethod;
 		Boolean useSecondaryMethod;
 		int numSiftTries = 1;
-		Boolean createNGR;
+		Boolean createNRG;
 		Boolean createNDVIColor;
 		Boolean createNDVIFloat;
 		Boolean outputClipTwo;
+		Boolean stretchVisible;
+		Boolean stretchIR;
+		double saturatedPixels;
+		double maxColorScale;
+		double minColorScale;
 		String fileType = "";
 		String lutName = "";
 		String logName = "log.txt";
@@ -58,13 +63,18 @@ public class Register_Images implements PlugIn, DialogListener {
 		dialog.addChoice("Select secondary registration method", secondaryRegMethodTypes, secondaryRegMethodTypes[1]);
 		dialog.addChoice("Select transformation type if using SIFT", transformationTypes, transformationTypes[0]);
 		dialog.addNumericField("Number of tries for SIFT to find correspondence points", 3, 0);
-		dialog.addChoice("Method to improve SIFT point selection", preprocessingType, preprocessingType[0]);
+		dialog.addChoice("Method to improve SIFT point selection", preprocessingType, preprocessingType[1]);
 		dialog.addMessage("Output image options:");
 		dialog.addChoice("Output image type", outputImageTypes, outputImageTypes[0]);
-		dialog.addCheckbox("Create NGR image?", true);
+		dialog.addCheckbox("Output NRG image?", true);
 		dialog.addCheckbox("Output clipped visible image?", true);
-		dialog.addCheckbox("Create Color NDVI image?", true);
-		dialog.addCheckbox("Create floating point NDVI image?", true);	
+		dialog.addCheckbox("Output Color NDVI image?", true);
+		dialog.addNumericField("Enter the minimum NDVI value for scaling color NDVI image", -1.0, 1);
+		dialog.addNumericField("Enter the maximum NDVI value for scaling color NDVI image", 1.0, 1);
+		dialog.addCheckbox("Output floating point NDVI image?", true);
+		dialog.addCheckbox("Stretch the visible band before creating NDVI?", true);
+		dialog.addCheckbox("Stretch the NIR band before creating NDVI?", true);
+		dialog.addNumericField("Enter the saturation value for stretch", 2.0, 1);
 		dialog.addChoice("Channel from visible image to use for Red band to create NDVI", ndviBands, ndviBands[0]);
 		dialog.addChoice("Channel from IR image to use for IR band to create NDVI", ndviBands, ndviBands[2]);
 		dialog.addChoice("Select output color table for color NDVI image", lutNames, lutNames[0]);
@@ -82,10 +92,15 @@ public class Register_Images implements PlugIn, DialogListener {
 		numSiftTries = (int)dialog.getNextNumber();
 		preprocessingMethod = dialog.getNextChoice();
 		fileType = dialog.getNextChoice();
-		createNGR = dialog.getNextBoolean();
+		createNRG = dialog.getNextBoolean();
 		outputClipTwo = dialog.getNextBoolean();
 		createNDVIColor = dialog.getNextBoolean();
+		minColorScale = dialog.getNextNumber();
+		maxColorScale = dialog.getNextNumber();
 		createNDVIFloat = dialog.getNextBoolean();
+		stretchVisible = dialog.getNextBoolean();
+		stretchIR = dialog.getNextBoolean();
+		saturatedPixels = dialog.getNextNumber();
 		redBand = dialog.getNextChoiceIndex() + 1;
 		irBand = dialog.getNextChoiceIndex() + 1;
 		lutName  = dialog.getNextChoice();
@@ -101,7 +116,7 @@ public class Register_Images implements PlugIn, DialogListener {
 	    }
 		
 		// Dialog for output photos directory and log file name
-		SaveDialog sd = new SaveDialog("Output directory", "log", ".txt");
+		SaveDialog sd = new SaveDialog("Output directory and log file name", "log", ".txt");
 	    String outDirectory = sd.getDirectory();
 	    logName = sd.getFileName();
 	    if (logName==null){
@@ -217,7 +232,7 @@ public class Register_Images implements PlugIn, DialogListener {
 	    		if (continueProcessing) {
 	    			regImages = clipPair(regSource, rawTargetImage);
 	    			if (createNDVIFloat | createNDVIColor) {
-	    			ndviImage = regImages.calcNDVI(redBand, irBand);
+	    			ndviImage = regImages.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 	    			}
 	    			
 	    			if (createNDVIFloat) {
@@ -225,8 +240,20 @@ public class Register_Images implements PlugIn, DialogListener {
 	    			}
 	    			if (createNDVIColor) {
 	    				IndexColorModel cm = null;
-	    				LUT lut; 
-	    				ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
+	    				LUT lut;
+	    				// Uncomment next line to use default float-to-byte conversion
+	    				//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
+	    				ImagePlus colorNDVI;
+	    				colorNDVI = NewImage.createByteImage("Color NDVI", ndviImage.getWidth(), ndviImage.getHeight(), 1, NewImage.FILL_BLACK);
+	    				
+	    				float[] pixels = (float[])ndviImage.getProcessor().getPixels();
+	    				for (int y=0; y<ndviImage.getHeight(); y++) {
+	    		            int offset = y*ndviImage.getWidth();
+	    					for (int x=0; x<ndviImage.getWidth(); x++) {
+	    						int pos = offset+x;
+	    						colorNDVI.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
+	    					}	    						    				
+	    				}
 	    				// Get the LUT
 	    				try {
 	    				cm = LutLoader.open(lutLocation+lutName);
@@ -234,25 +261,25 @@ public class Register_Images implements PlugIn, DialogListener {
 	    				IJ.error(""+e);
 	    				}
 	    			
-	    				lut = new LUT(cm, 0.0, 255.0);
-	    				colorNDVI.setLut(lut);
-	    				ImagePlus colorNDVI_Image = new ImagePlus("Color NDVI", colorNDVI);
-	    				IJ.save(colorNDVI_Image, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+	    				lut = new LUT(cm, 255.0, 0.0);
+	    				colorNDVI.getProcessor().setLut(lut);
+	    				//ImagePlus colorNDVI_Image = new ImagePlus("Color NDVI", colorNDVI);
+	    				IJ.save(colorNDVI, outDirectory+outFileBase+"_NDVI_Color."+fileType);
 	    			}
 	    	
 	    			if (outputClipTwo) {
 	    				IJ.save(regImages.getSecond(), outDirectory+outFileBase+"_Clipped."+fileType);
 	    			}
 	    	
-	    			if (createNGR) {
+	    			if (createNRG) {
 	    				ColorProcessor firstCP = (ColorProcessor)regImages.getFirst().getProcessor();
 	    				ColorProcessor secondCP = (ColorProcessor)regImages.getSecond().getProcessor();
-	    				ColorProcessor colorNGR = new ColorProcessor(regImages.getFirst().getWidth(), regImages.getSecond().getHeight());
-	    				colorNGR.setChannel(1, firstCP.getChannel(1, null));
-	    				colorNGR.setChannel(2, secondCP.getChannel(1, null));
-	    				colorNGR.setChannel(3, secondCP.getChannel(2, null));
-	    				ImagePlus ngrImage = new ImagePlus("NGR Image", colorNGR);
-	    				IJ.save(ngrImage, outDirectory+outFileBase+"_NGR."+fileType);
+	    				ColorProcessor colorNRG = new ColorProcessor(regImages.getFirst().getWidth(), regImages.getSecond().getHeight());
+	    				colorNRG.setChannel(1, firstCP.getChannel(1, null));
+	    				colorNRG.setChannel(2, secondCP.getChannel(1, null));
+	    				colorNRG.setChannel(3, secondCP.getChannel(2, null));
+	    				ImagePlus nrgImage = new ImagePlus("NRG Image", colorNRG);
+	    				IJ.save(nrgImage, outDirectory+outFileBase+"_NRG."+fileType);
 	    			}
 	    	
 	    		}
@@ -270,15 +297,23 @@ public class Register_Images implements PlugIn, DialogListener {
 		Checkbox ndviColorCheckbox = (Checkbox)gd.getCheckboxes().get(3);
 		Checkbox ndviFloatCheckbox = (Checkbox)gd.getCheckboxes().get(4);
 		Vector<?> choices = gd.getChoices();
+		Vector<?> numericChoices = gd.getNumericFields();
+		Vector<?> checkboxChoices = gd.getCheckboxes();
 		if (ndviColorCheckbox.getState() | ndviFloatCheckbox.getState()) {
 			((Choice)choices.get(5)).setEnabled(true);
 			((Choice)choices.get(6)).setEnabled(true);
 			((Choice)choices.get(7)).setEnabled(true);
+			((Checkbox)checkboxChoices.get(5)).setEnabled(true);
+			((Checkbox)checkboxChoices.get(6)).setEnabled(true);
+			((TextField)numericChoices.get(3)).setEnabled(true);
 		} 
 		else {
 			((Choice)choices.get(5)).setEnabled(false);
 			((Choice)choices.get(6)).setEnabled(false);
 			((Choice)choices.get(7)).setEnabled(false);
+			((Checkbox)checkboxChoices.get(5)).setEnabled(false);
+			((Checkbox)checkboxChoices.get(6)).setEnabled(false);
+			((TextField)numericChoices.get(3)).setEnabled(false);
 		}
 		Checkbox useSecondaryMethodsCheckbox = (Checkbox)gd.getCheckboxes().get(0);
 		if (useSecondaryMethodsCheckbox.getState()) {
@@ -305,9 +340,11 @@ public class Register_Images implements PlugIn, DialogListener {
 		
 		if (ndviColorCheckbox.getState()) {
 			((Choice)choices.get(7)).setEnabled(true);
+			((TextField)numericChoices.get(3)).setEnabled(true);
 		} 
 		else {
 			((Choice)choices.get(7)).setEnabled(false);
+			((TextField)numericChoices.get(3)).setEnabled(false);
 		}
 			
 		return true;
@@ -383,7 +420,7 @@ public class Register_Images implements PlugIn, DialogListener {
 		IJ.run("bUnwarpJ", "source_image="+rawSourceImage.getTitle()+" target_image="+rawTargetImage.getTitle()+
 				" registration=Fast image_subsample_factor=0 initial_deformation=[Very Coarse] " +
 				"inal_deformation=Fine divergence_weight=0 curl_weight=0 landmark_weight=0 image_weight=1 " +
-				"consistency_weight=10 stop_threshold=0.01");
+				"consistency_weight=10 stop_threcreateFloatImage(shold=0.01");
 		ImagePlus regSource = new ImagePlus("newSourceImage", WindowManager.getImage("Registered Source Image").getStack().getProcessor(1));
 		return regSource;
 	}

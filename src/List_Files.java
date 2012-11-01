@@ -1,8 +1,12 @@
 import java.io.*;
+
 import ij.*;
 import ij.io.*;
 import ij.gui.*;
 import ij.plugin.*;
+import com.drew.metadata.*;
+import com.drew.imaging.*;
+import com.drew.metadata.exif.ExifSubIFDDirectory;
 
 
 
@@ -68,7 +72,9 @@ public class List_Files implements PlugIn {
         	 return;
          }
          File IR_RefFile = new File(IR_Directory, IR_FileName);
-         offset = (long) (visRefFile.lastModified() - IR_RefFile.lastModified());
+         long visTime = getExifTime(visRefFile);
+         long IR_Time = getExifTime(IR_RefFile);
+         offset = (long) (visTime - IR_Time);
       }
 
       visFolder = new File(visDirectory);
@@ -85,4 +91,34 @@ public class List_Files implements PlugIn {
      }
       photoPairs.writeFilePairs(dir, fileName);
    } 
+   
+// Get the original image date from the EXIF tag
+	long getExifTime(File file){
+		long time = 0;
+		boolean usingExif = false;
+		try {
+			Metadata metadata = ImageMetadataReader.readMetadata(file);
+			ExifSubIFDDirectory directory = metadata.getDirectory(ExifSubIFDDirectory.class);
+			boolean hasTag = directory.containsTag(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+			if (hasTag) {
+				time = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL).getTime();
+				usingExif = true;
+			}
+		} catch (ImageProcessingException e) {
+            String msg = e.getMessage();
+            if (msg==null) msg = ""+e;
+            IJ.error("Error extracting EXIF metadata from file \n" + file.getAbsolutePath()); 
+            usingExif = false;
+        } 
+		catch (IOException e) {
+			e.printStackTrace();
+			usingExif = false;;
+		}
+		if (!usingExif) {
+			file.lastModified();
+			usingExif = false;
+		}
+		
+		return time;
+	}
 }

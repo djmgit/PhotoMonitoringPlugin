@@ -44,8 +44,8 @@ public class List_Files implements PlugIn {
       Prefs.savePreferences();
       
       acceptableDifference = acceptableDifference * 1000.0;
-      if (syncMethod == "Assume synced" | syncMethod == "Enter offset") {
-         if (syncMethod == "Assume synced") offset = 0; 
+      if (syncMethod == syncMethodList[0] | syncMethod == syncMethodList[1]) {
+         if (syncMethod == syncMethodList[0]) offset = 0; 
          else {
         	 double offsetD = Prefs.get("pm.offsetD", 0.0);
         	 offsetD = IJ.getNumber("Enter the offset (Vis - NIR) in seconds", offsetD);
@@ -69,7 +69,7 @@ public class List_Files implements PlugIn {
         	 return;
          }
       } 
-      else if (syncMethod == "Calculate from pair"){
+      else if (syncMethod == syncMethodList[2]){
          OpenDialog odVis = new OpenDialog("Open visible reference image", arg);
          visDirectory = odVis.getDirectory();
          String visFileName = odVis.getFileName();

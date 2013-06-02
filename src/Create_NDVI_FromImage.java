@@ -88,7 +88,6 @@ public class Create_NDVI_FromImage implements PlugInFilter {
 		if (useDefaults) { 
 			dialog.getNextBoolean();
 		}
-		dialog.getNextBoolean();
 		displayNDVIColor = dialog.getNextBoolean();
 		minColorScale = dialog.getNextNumber();
 		maxColorScale = dialog.getNextNumber();
@@ -98,7 +97,8 @@ public class Create_NDVI_FromImage implements PlugInFilter {
 		saturatedPixels = dialog.getNextNumber();
 		redBand = dialog.getNextChoiceIndex() + 1;
 		irBand = dialog.getNextChoiceIndex() + 1;
-		lutName  = dialog.getNextChoice();	
+		lutName = dialog.getNextChoice();	
+		saveParameters = dialog.getNextBoolean();
 
 		if (saveParameters) {
 			// Set preferences to IJ.Prefs file

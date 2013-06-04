@@ -5,26 +5,22 @@ import java.awt.image.IndexColorModel;
 import java.io.File;
 import java.io.IOException;
 import ij.plugin.LutLoader;
-import ij.plugin.filter.PlugInFilter;
+import ij.plugin.*;
 import ij.process.*;
 import ij.ImagePlus;
 
-public class Create_NDVI_FromImage implements PlugInFilter {
-	public int setup(String arg, ImagePlus imp) {
-		return DOES_RGB+NO_CHANGES;
-	}
+public class Create_NDVI_FromImage implements PlugIn {
+
 	
-	public void run(ImageProcessor ip) {
-		String[] outputImageTypes = {"tiff", "jpeg", "gif", "zip", "raw", "avi", "bmp", "fits", "png", "pgm"};
+	public void run(String arg) {
+		ImagePlus imagePlus = WindowManager.getCurrentImage();
 		String[] ndviBands = {"red", "green", "blue"};	
 		// Get list of LUTs
 		String lutLocation = IJ.getDirectory("luts");
 		File lutDirectory = new File(lutLocation);
 		String[] lutNames = lutDirectory.list();
 		
-		ImagePlus inImagePlus = null;
 		ImagePlus ndviImage = null;
-		String outFileBase = "";
 		int redBand, irBand;
 		Boolean saveParameters = true;
 		Boolean useDefaults = false;
@@ -118,39 +114,104 @@ public class Create_NDVI_FromImage implements PlugInFilter {
 			Prefs.savePreferences();
 		}
 
-		ImagePlus imagePlus = new ImagePlus("image", ip);
-		RegImagePair imagePair = new RegImagePair(imagePlus, imagePlus);
-		ndviImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
-		if (displayNDVIFloat) {
-			ndviImage.show();
-		}
-		
-		if (displayNDVIColor) {
-			IndexColorModel cm = null;
-			LUT lut;
-			//Uncomment next line to use default float-to-byte conversion
-			//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
-			ImagePlus colorNDVI;
-			colorNDVI = NewImage.createByteImage("Color NDVI", ndviImage.getWidth(), ndviImage.getHeight(), 1, NewImage.FILL_BLACK);
+		int numSlices = imagePlus.getImageStackSize();
+		if (numSlices > 1) {
+			ImageStack floatStack = null;
+			ImageStack colorStack = null;
+	    	if (displayNDVIFloat) {
+    			floatStack = new ImageStack(imagePlus.getWidth(), imagePlus.getHeight());
+    		}
+	    	if (displayNDVIColor) {
+	    		colorStack = new ImageStack(imagePlus.getWidth(), imagePlus.getHeight());
+	    	}
+			for (int sliceCount=1; sliceCount<=numSlices; sliceCount++) {
+				ImageStack inputStack = imagePlus.getStack();
+				ImagePlus sliceImagePlus = new ImagePlus("slice", inputStack.getProcessor(sliceCount)); // specify number of slice
+				
+				// Make sure images are RGB
+				if (sliceImagePlus.getType() != ImagePlus.COLOR_RGB) {
+		    		IJ.error("Images must be Color RGB");
+		    		return;  
+		    	}
+				
+				RegImagePair imagePair = new RegImagePair(sliceImagePlus, sliceImagePlus);
+		    	ndviImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+		    	
+		    	if (displayNDVIFloat) {
+		    		floatStack.addSlice(ndviImage.getProcessor());
+	    		}
+		    	
+		    	if (displayNDVIColor) {
+		    		IndexColorModel cm = null;
+					LUT lut;
+					//Uncomment next line to use default float-to-byte conversion
+					//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
+					ImagePlus colorNDVI;
+					colorNDVI = NewImage.createByteImage("Color NDVI", ndviImage.getWidth(), ndviImage.getHeight(), 1, NewImage.FILL_BLACK);
+				
+					float[] pixels = (float[])ndviImage.getProcessor().getPixels();
+					for (int y=0; y<ndviImage.getHeight(); y++) {
+						int offset = y*ndviImage.getWidth();
+						for (int x=0; x<ndviImage.getWidth(); x++) {
+							int pos = offset+x;
+							colorNDVI.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
+						}	    						    				
+					}
+					colorStack.addSlice(colorNDVI.getProcessor());  
+		    	}
+
+			}
+			if (displayNDVIFloat) {
+				ImagePlus imagePlusFloatStack = new ImagePlus("float stack", floatStack);
+				imagePlusFloatStack.show();
+			}
+			if (displayNDVIColor) {
+	    		IndexColorModel cm = null;
+
+	    		try {
+	    			cm = LutLoader.open(lutLocation+lutName);
+	    		} catch (IOException e) {
+	    			IJ.error(""+e);
+	    		}
+				colorStack.setColorModel(cm);
+				ImagePlus imagePlusColorStack = new ImagePlus("color stack", colorStack);
+				imagePlusColorStack.show();
+			}
 			
-			float[] pixels = (float[])ndviImage.getProcessor().getPixels();
-			for (int y=0; y<ndviImage.getHeight(); y++) {
-	            int offset = y*ndviImage.getWidth();
-				for (int x=0; x<ndviImage.getWidth(); x++) {
-					int pos = offset+x;
-					colorNDVI.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
-				}	    						    				
-			}
-			// Get the LUT
-			try {
-			cm = LutLoader.open(lutLocation+lutName);
-			} catch (IOException e) {
-			IJ.error(""+e);
+		} else {
+			RegImagePair imagePair = new RegImagePair(imagePlus, imagePlus);
+			ndviImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+			if (displayNDVIFloat) {
+				ndviImage.show();
 			}
 		
-			lut = new LUT(cm, 255.0, 0.0);
-			colorNDVI.getProcessor().setLut(lut);
-			colorNDVI.show();
+			if (displayNDVIColor) {
+				IndexColorModel cm = null;
+				LUT lut;
+				//Uncomment next line to use default float-to-byte conversion
+				//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
+				ImagePlus colorNDVI;
+				colorNDVI = NewImage.createByteImage("Color NDVI", ndviImage.getWidth(), ndviImage.getHeight(), 1, NewImage.FILL_BLACK);
+			
+				float[] pixels = (float[])ndviImage.getProcessor().getPixels();
+				for (int y=0; y<ndviImage.getHeight(); y++) {
+					int offset = y*ndviImage.getWidth();
+					for (int x=0; x<ndviImage.getWidth(); x++) {
+						int pos = offset+x;
+						colorNDVI.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
+					}	    						    				
+				}
+				// Get the LUT
+				try {
+					cm = LutLoader.open(lutLocation+lutName);
+				} catch (IOException e) {
+					IJ.error(""+e);
+				}
+		
+				lut = new LUT(cm, 255.0, 0.0);
+				colorNDVI.getProcessor().setLut(lut);
+				colorNDVI.show();
+			}
 		}
 	}
 }

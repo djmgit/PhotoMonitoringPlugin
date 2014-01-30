@@ -21,6 +21,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 		String lutLocation = IJ.getDirectory("luts");
 		File lutDirectory = new File(lutLocation);
 		String[] lutNames = lutDirectory.list();
+		String logName = "log.txt";
 		
 		ImagePlus inImagePlus = null;
 		ImagePlus ndviImage = null;
@@ -121,7 +122,6 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 			Prefs.set("pm.fromSBDir.lutName", lutName);
 			Prefs.set("pm.fromSBDir.redBandIndex", redBand - 1);
 			Prefs.set("pm.fromSBDir.irBandIndex", irBand - 1);
-			Prefs.set("pm.fromSBDir.saturatedPixels", saturatedPixels);
 		
 			// Save preferences to IJ.Prefs file
 			Prefs.savePreferences();
@@ -137,14 +137,36 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
         File inFolder = new File(inDir);
         File[] inputImages = inFolder.listFiles();
         
-		// Dialog for output photos directory
-        DirectoryChooser outDirChoose = new DirectoryChooser("Output image directory");
-        String outDir = outDirChoose.getDirectory();
-        if (outDir == null) {
-       	 IJ.error("Output image directory was not selected");
-       	 return;
-        }
-	    
+     // Dialog for output photos directory and log file name
+     	SaveDialog sd = new SaveDialog("Output directory and log file name", "log", ".txt");
+     	String outDirectory = sd.getDirectory();
+     	logName = sd.getFileName();
+     	if (logName==null){
+     	   IJ.error("No directory was selected");
+     	   return;
+     	}
+     	
+     	try {
+	    	BufferedWriter bufWriter = new BufferedWriter(new FileWriter(outDirectory+logName));
+	    	// Write parameter settings to log file
+	    	bufWriter.write("PARAMETER SETTINGS:\n");
+		    bufWriter.write("Output image type: " + fileType + "\n");
+		    bufWriter.write("Output Color NDVI image? " + createNDVIColor + "\n");
+		    bufWriter.write("Minimum NDVI value for scaling color NDVI image: " + minColorScale + "\n");
+		    bufWriter.write("Maximum NDVI value for scaling color NDVI image: " + maxColorScale + "\n");
+		    bufWriter.write("Output floating point NDVI image? " + createNDVIFloat + "\n");
+		    bufWriter.write("Stretch the visible band before creating NDVI? " + stretchVisible + "\n");
+		    bufWriter.write("Stretch the NIR band before creating NDVI? " + stretchIR + "\n");
+		    bufWriter.write("Saturation value for stretch: " + saturatedPixels + "\n");
+		    bufWriter.write("Channel from visible image to use for Red band to create NDVI: " + redBand + "\n");
+		    bufWriter.write("Channel from IR image to use for IR band to create NDVI: " + irBand + "\n");
+		    bufWriter.write("Select output color table for color NDVI image: " + lutName + "\n\n");
+	    	bufWriter.close();
+	    } catch (Exception e) {
+	    	IJ.error("Error writing log file", e.getMessage());
+	    	return;
+	    }
+
 	    // Start processing one image at a time
 	    for (File inImage : inputImages) {
 	    	// Open image
@@ -162,7 +184,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	    	ndviImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 	    		
 	    	if (createNDVIFloat) {
-    			IJ.save(ndviImage, outDir+outFileBase+"_NDVI_Float."+fileType);
+    			IJ.save(ndviImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
     		}
 	    		
 	    	if (createNDVIColor) {
@@ -191,7 +213,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
     			lut = new LUT(cm, 255.0, 0.0);
     			colorNDVI.getProcessor().setLut(lut);
     			colorNDVI.show();
-    			IJ.save(colorNDVI, outDir+outFileBase+"_NDVI_Color."+fileType);
+    			IJ.save(colorNDVI, outDirectory+outFileBase+"_NDVI_Color."+fileType);
     		}
 	    		IJ.run("Close All");
 	    }

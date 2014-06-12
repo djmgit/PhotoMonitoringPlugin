@@ -1,3 +1,6 @@
+To download the plugin, LUTs or guide click on the "downloads" directory then click on the file(s) you want to download. When a gray bar
+pops up click on the "View Raw" link and the file will be downloaded.
+
 Description: The photo monitoring plugins are written to work with Fiji image processing software (http://fiji.sc/wiki/index.php/Fiji) and they will also work with ImageJ the software on which Fiji is based. These plugins are designed to improve the efficiency and effectiveness of using photo monitoring methods. The plugins are support dual-camera setups with one camera acquiring a "normal" visible color digital photo and the other acquiring a near-infrared digitial photo as well as single camera setups such as infrablue cameras.
 
 There are currently four plugins bundled in PhotoMonitoringPlugin: 1 - The "Create dual image list" plugin is designed to facilitate the process of matching digital photographs that were acquired at roughly the same time. The plugin outputs a text file with the path and file names for image pairs (e.g., images acquired from two cameras) that can be input into the "Dual image NDVI processing" plugin. The image matching is done by synchronizing the times stored in image EXIF DateTimeOriginal tag from each of two cameras. If for some reason the EXIF DateTimeOriginal tag is not set then the files last modified time will be used.

@@ -60,6 +60,48 @@ public class RegImagePair {
 		return newImage;		
 	}
 	
+	public ImagePlus calcDVI (int irChannel, int redChannel, boolean stretchVis, boolean stretchIR, double saturated){
+		int width = this.getFirst().getWidth();
+		int height = this.getFirst().getHeight();
+		int[] lutVis = null;
+		int[] lutIR = null;
+		double irPixel, visPixel;
+		ColorProcessor irImage = (ColorProcessor)this.getFirst().getProcessor();
+		ColorProcessor redImage = (ColorProcessor)this.getSecond().getProcessor();
+		ImagePlus newImage;
+		newImage = NewImage.createFloatImage("dviImage", width, height, 1, NewImage.FILL_BLACK);
+		byte[] irArray = irImage.getChannel(irChannel);
+		byte[] redArray = redImage.getChannel(redChannel);
+		if (stretchVis)
+			lutVis = stretchBand(width, height, redArray, saturated);
+		if (stretchIR)
+			lutIR = stretchBand(width, height, irArray, saturated);
+		double outPixel = 0.0;
+		for (int y=0; y<height; y++) {
+            int offset = y*width;
+			for (int x=0; x<width; x++) {
+				int pos = offset+x;
+				if (stretchIR)
+					irPixel = lutIR[irArray[pos] & 0xff];
+				else 
+					irPixel = irArray[pos] & 0xff;
+				if (stretchVis)
+					visPixel = lutVis[redArray[pos] & 0xff];
+				else
+					visPixel = redArray[pos] & 0xff;
+				
+				if ((irPixel + visPixel) == 0.0) {
+					outPixel = 0.0;
+				} else {
+				
+					outPixel = (irPixel - visPixel);
+				}
+				newImage.getProcessor().putPixelValue(x, y, outPixel);
+			}
+		}
+		return newImage;		
+	}
+	
 	public int[] stretchBand (int width, int height, byte[] byteArray, double saturated){
 		int threshold;
 		int hmin, hmax;

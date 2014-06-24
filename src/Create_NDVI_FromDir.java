@@ -15,8 +15,9 @@ import java.util.Vector;
 
 public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	public void run(String arg) {
+		String[] indexTypes = {"NDVI (NIR-Vis)/(NIR+Vis)", "DVI (NIR-Vis)"};
 		String[] outputImageTypes = {"tiff", "jpeg", "gif", "zip", "raw", "avi", "bmp", "fits", "png", "pgm"};
-		String[] ndviBands = {"red", "green", "blue"};	
+		String[] IndexBands = {"red", "green", "blue"};	
 		// Get list of LUTs
 		String lutLocation = IJ.getDirectory("luts");
 		File lutDirectory = new File(lutLocation);
@@ -24,16 +25,17 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 		String logName = "log.txt";
 		
 		ImagePlus inImagePlus = null;
-		ImagePlus ndviImage = null;
+		ImagePlus indexImage = null;
 		String outFileBase = "";
 		int redBand, irBand;
 		Boolean saveParameters = true;
 		Boolean useDefaults = false;
 		
 		// Initialize variables from IJ.Prefs file
+		String indexType = Prefs.get("pm.fromSBImage.indexType", indexTypes[0]);
 		String fileType = Prefs.get("pm.fromSBDir.fromSBDir.fileType", outputImageTypes[0]);
-		Boolean createNDVIColor = Prefs.get("pm.fromSBDir.createNDVIColor", true);
-		Boolean createNDVIFloat = Prefs.get("pm.fromSBDir.createNDVIFloat", true);
+		Boolean createIndexColor = Prefs.get("pm.fromSBDir.createIndexColor", true);
+		Boolean createIndexFloat = Prefs.get("pm.fromSBDir.createIndexFloat", true);
 		Boolean stretchVisible = Prefs.get("pm.fromSBDir.stretchVisible", true);
 		Boolean stretchIR = Prefs.get("pm.fromSBDir.stretchIR", true);
 		double saturatedPixels = Prefs.get("pm.fromSBDir.saturatedPixels", 2.0);
@@ -47,18 +49,19 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 		// Create dialog window
 		GenericDialog dialog = new GenericDialog("Enter variables");
 		dialog.addCheckbox("Load default parameters (click OK below to reload)", false);
+		dialog.addChoice("Select index type for calculation", indexTypes, indexType);
 		dialog.addMessage("Output image options:");
 		dialog.addChoice("Output image type", outputImageTypes, fileType);
-		dialog.addCheckbox("Output Color NDVI image?", createNDVIColor);
-		dialog.addNumericField("Minimum NDVI value for scaling color NDVI image", minColorScale, 1);
-		dialog.addNumericField("Maximum NDVI value for scaling color NDVI image", maxColorScale, 1);
-		dialog.addCheckbox("Output floating point NDVI image?", createNDVIFloat);
-		dialog.addCheckbox("Stretch the visible band before creating NDVI?", stretchVisible);
-		dialog.addCheckbox("Stretch the NIR band before creating NDVI?", stretchIR);
+		dialog.addCheckbox("Output Color Index image?", createIndexColor);
+		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 1);
+		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 1);
+		dialog.addCheckbox("Output floating point Index image?", createIndexFloat);
+		dialog.addCheckbox("Stretch the visible band before creating Index?", stretchVisible);
+		dialog.addCheckbox("Stretch the NIR band before creating Index?", stretchIR);
 		dialog.addNumericField("Saturation value for stretch", saturatedPixels, 1);
-		dialog.addChoice("Channel for Red band to create NDVI", ndviBands, ndviBands[redBandIndex]);
-		dialog.addChoice("Channel for IR band to create NDVI", ndviBands, ndviBands[irBandIndex]);
-		dialog.addChoice("Select output color table for color NDVI image", lutNames, lutName);
+		dialog.addChoice("Channel for Red band to create Index", IndexBands, IndexBands[redBandIndex]);
+		dialog.addChoice("Channel for IR band to create Index", IndexBands, IndexBands[irBandIndex]);
+		dialog.addChoice("Select output color table for color Index image", lutNames, lutName);
 		dialog.addCheckbox("Save parameters for next session", true);
 		dialog.addDialogListener(this);
 		dialog.showDialog();
@@ -72,18 +75,19 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 			// Create dialog window with default values
 			dialog = new GenericDialog("Enter variables");
 			dialog.addCheckbox("Load default parameters (click OK below to reload)", false);
+			dialog.addChoice("Select index type for calculation", indexTypes, indexTypes[0]);
 			dialog.addMessage("Output image options:");
 			dialog.addChoice("Output image type", outputImageTypes, outputImageTypes[0]);
-			dialog.addCheckbox("Output Color NDVI image?", true);
-			dialog.addNumericField("Enter the minimum NDVI value for scaling color NDVI image", -1.0, 1);
-			dialog.addNumericField("Enter the maximum NDVI value for scaling color NDVI image", 1.0, 1);
-			dialog.addCheckbox("Output floating point NDVI image?", true);
-			dialog.addCheckbox("Stretch the visible band before creating NDVI?", true);
-			dialog.addCheckbox("Stretch the NIR band before creating NDVI?", true);
+			dialog.addCheckbox("Output Color Index image?", true);
+			dialog.addNumericField("Enter the minimum Index value for scaling color Index image", -1.0, 1);
+			dialog.addNumericField("Enter the maximum Index value for scaling color Index image", 1.0, 1);
+			dialog.addCheckbox("Output floating point Index image?", true);
+			dialog.addCheckbox("Stretch the visible band before creating Index?", true);
+			dialog.addCheckbox("Stretch the NIR band before creating Index?", true);
 			dialog.addNumericField("Enter the saturation value for stretch", 2.0, 1);
-			dialog.addChoice("Channel for Red band to create NDVI", ndviBands, ndviBands[2]);
-			dialog.addChoice("Channel for IR band to create NDVI", ndviBands, ndviBands[0]);
-			dialog.addChoice("Select output color table for color NDVI image", lutNames, lutNames[0]);
+			dialog.addChoice("Channel for Red band to create Index", IndexBands, IndexBands[2]);
+			dialog.addChoice("Channel for IR band to create Index", IndexBands, IndexBands[0]);
+			dialog.addChoice("Select output color table for color Index image", lutNames, lutNames[0]);
 			dialog.addCheckbox("Save parameters for next session", false);
 			dialog.addDialogListener(this);
 			dialog.showDialog();
@@ -96,11 +100,12 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 		if (useDefaults) { 
 			dialog.getNextBoolean();
 		}
+		indexType = dialog.getNextChoice();
 		fileType = dialog.getNextChoice();
-		createNDVIColor = dialog.getNextBoolean();
+		createIndexColor = dialog.getNextBoolean();
 		minColorScale = dialog.getNextNumber();
 		maxColorScale = dialog.getNextNumber();
-		createNDVIFloat = dialog.getNextBoolean();
+		createIndexFloat = dialog.getNextBoolean();
 		stretchVisible = dialog.getNextBoolean();
 		stretchIR = dialog.getNextBoolean();
 		saturatedPixels = dialog.getNextNumber();
@@ -111,9 +116,10 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	
 		if (saveParameters) {
 			// Set preferences to IJ.Prefs file
+			Prefs.set("pm.fromSBImage.indexType", indexType);
 			Prefs.set("pm.fromSBDir.fileType", fileType);
-			Prefs.set("pm.fromSBDir.createNDVIColor", createNDVIColor);
-			Prefs.set("pm.fromSBDir.createNDVIFloat", createNDVIFloat);
+			Prefs.set("pm.fromSBDir.createIndexColor", createIndexColor);
+			Prefs.set("pm.fromSBDir.createIndexFloat", createIndexFloat);
 			Prefs.set("pm.fromSBDir.stretchVisible", stretchVisible);
 			Prefs.set("pm.fromSBDir.stretchIR", stretchIR);
 			Prefs.set("pm.fromSBDir.saturatedPixels", saturatedPixels);
@@ -150,17 +156,18 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	    	BufferedWriter bufWriter = new BufferedWriter(new FileWriter(outDirectory+logName));
 	    	// Write parameter settings to log file
 	    	bufWriter.write("PARAMETER SETTINGS:\n");
+	    	bufWriter.write("Select index type for calculation: " + indexType + "\n\n");
 		    bufWriter.write("Output image type: " + fileType + "\n");
-		    bufWriter.write("Output Color NDVI image? " + createNDVIColor + "\n");
-		    bufWriter.write("Minimum NDVI value for scaling color NDVI image: " + minColorScale + "\n");
-		    bufWriter.write("Maximum NDVI value for scaling color NDVI image: " + maxColorScale + "\n");
-		    bufWriter.write("Output floating point NDVI image? " + createNDVIFloat + "\n");
-		    bufWriter.write("Stretch the visible band before creating NDVI? " + stretchVisible + "\n");
-		    bufWriter.write("Stretch the NIR band before creating NDVI? " + stretchIR + "\n");
+		    bufWriter.write("Output Color Index image? " + createIndexColor + "\n");
+		    bufWriter.write("Minimum Index value for scaling color Index image: " + minColorScale + "\n");
+		    bufWriter.write("Maximum Index value for scaling color Index image: " + maxColorScale + "\n");
+		    bufWriter.write("Output floating point Index image? " + createIndexFloat + "\n");
+		    bufWriter.write("Stretch the visible band before creating Index? " + stretchVisible + "\n");
+		    bufWriter.write("Stretch the NIR band before creating Index? " + stretchIR + "\n");
 		    bufWriter.write("Saturation value for stretch: " + saturatedPixels + "\n");
-		    bufWriter.write("Channel from visible image to use for Red band to create NDVI: " + redBand + "\n");
-		    bufWriter.write("Channel from IR image to use for IR band to create NDVI: " + irBand + "\n");
-		    bufWriter.write("Select output color table for color NDVI image: " + lutName + "\n\n");
+		    bufWriter.write("Channel from visible image to use for Red band to create Index: " + redBand + "\n");
+		    bufWriter.write("Channel from IR image to use for IR band to create Index: " + irBand + "\n");
+		    bufWriter.write("Select output color table for color Index image: " + lutName + "\n\n");
 	    	bufWriter.close();
 	    } catch (Exception e) {
 	    	IJ.error("Error writing log file", e.getMessage());
@@ -181,26 +188,43 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	    	
 	    	inImagePlus.show();
 	    	RegImagePair imagePair = new RegImagePair(inImagePlus, inImagePlus);
-	    	ndviImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    	indexImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    	if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    		indexImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    	} 
+	    	else if (indexType == "DVI (NIR-Vis)") {
+	    		indexImage = imagePair.calcDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    	}
 	    		
-	    	if (createNDVIFloat) {
-    			IJ.save(ndviImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
+	    	if (createIndexFloat) {
+	    		if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    			IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
+	    		}
+	    		else if (indexType == "DVI (NIR-Vis)") {
+	    			IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float."+fileType);
+	    		}
     		}
 	    		
-	    	if (createNDVIColor) {
+	    	if (createIndexColor) {
     			IndexColorModel cm = null;
     			LUT lut;
     			// Uncomment next line to use default float-to-byte conversion
     			//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
-    			ImagePlus colorNDVI;
-    			colorNDVI = NewImage.createByteImage("Color NDVI", ndviImage.getWidth(), ndviImage.getHeight(), 1, NewImage.FILL_BLACK);
+    			ImagePlus colorIndex = null;
+    			if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+    				colorIndex = NewImage.createByteImage("Color NDVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
+    			}
+    			else if (indexType == "DVI (NIR-Vis)") {
+    				colorIndex = NewImage.createByteImage("Color DVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
+
+    			}
     			
-    			float[] pixels = (float[])ndviImage.getProcessor().getPixels();
-    			for (int y=0; y<ndviImage.getHeight(); y++) {
-    	            int offset = y*ndviImage.getWidth();
-    				for (int x=0; x<ndviImage.getWidth(); x++) {
+    			float[] pixels = (float[])indexImage.getProcessor().getPixels();
+    			for (int y=0; y<indexImage.getHeight(); y++) {
+    	            int offset = y*indexImage.getWidth();
+    				for (int x=0; x<indexImage.getWidth(); x++) {
     					int pos = offset+x;
-    					colorNDVI.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
+    					colorIndex.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
     				}	    						    				
     			}
     			// Get the LUT
@@ -211,9 +235,14 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
     			}
     		
     			lut = new LUT(cm, 255.0, 0.0);
-    			colorNDVI.getProcessor().setLut(lut);
-    			colorNDVI.show();
-    			IJ.save(colorNDVI, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+    			colorIndex.getProcessor().setLut(lut);
+    			colorIndex.show();
+    			if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+    				IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+    			}
+    			else if (indexType == "DVI (NIR-Vis)") {
+    				IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+fileType);
+    			}
     		}
 	    		IJ.run("Close All");
 	    }
@@ -221,10 +250,10 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	
 	// Method to update dialog based on user selections
 	public boolean dialogItemChanged(GenericDialog gd, AWTEvent e) {
-			Checkbox ndviColorCheckbox = (Checkbox)gd.getCheckboxes().get(1);
+			Checkbox IndexColorCheckbox = (Checkbox)gd.getCheckboxes().get(1);
 			Vector<?> numericChoices = gd.getNumericFields();
 			Vector<?> choices = gd.getChoices();
-			if (ndviColorCheckbox.getState()) {
+			if (IndexColorCheckbox.getState()) {
 				((TextField)numericChoices.get(0)).setEnabled(true);
 				((TextField)numericChoices.get(1)).setEnabled(true);
 				((Choice)choices.get(3)).setEnabled(true);

@@ -14,20 +14,22 @@ public class Create_NDVI_FromImage implements PlugIn {
 	
 	public void run(String arg) {
 		ImagePlus imagePlus = WindowManager.getCurrentImage();
-		String[] ndviBands = {"red", "green", "blue"};	
+		String[] indexTypes = {"NDVI (NIR-Vis)/(NIR+Vis)", "DVI (NIR-Vis)"};
+		String[] IndexBands = {"red", "green", "blue"};	
 		// Get list of LUTs
 		String lutLocation = IJ.getDirectory("luts");
 		File lutDirectory = new File(lutLocation);
 		String[] lutNames = lutDirectory.list();
 		
-		ImagePlus ndviImage = null;
+		ImagePlus indexImage = null;
 		int redBand, irBand;
 		Boolean saveParameters = true;
 		Boolean useDefaults = false;
 		
 		// Initialize variables from IJ.Prefs file
-		Boolean displayNDVIColor = Prefs.get("pm.fromSBImage.createNDVIColor", true);
-		Boolean displayNDVIFloat = Prefs.get("pm.fromSBImage.createNDVIFloat", true);
+		String indexType = Prefs.get("pm.fromSBImage.indexType", indexTypes[0]);
+		Boolean displayIndexColor = Prefs.get("pm.fromSBImage.createIndexColor", true);
+		Boolean displayIndexFloat = Prefs.get("pm.fromSBImage.createIndexFloat", true);
 		Boolean stretchVisible = Prefs.get("pm.fromSBImage.stretchVisible", true);
 		Boolean stretchIR = Prefs.get("pm.fromSBImage.stretchIR", true);
 		double saturatedPixels = Prefs.get("pm.fromSBImage.saturatedPixels", 2.0);
@@ -41,16 +43,17 @@ public class Create_NDVI_FromImage implements PlugIn {
 		// Create dialog window
 		GenericDialog dialog = new GenericDialog("Enter variables");
 		dialog.addCheckbox("Load default parameters (click OK below to reload)", false);
-		dialog.addCheckbox("Display Color NDVI image?", displayNDVIColor);
-		dialog.addNumericField("Minimum NDVI value for scaling color NDVI image", minColorScale, 1);
-		dialog.addNumericField("Maximum NDVI value for scaling color NDVI image", maxColorScale, 1);
-		dialog.addCheckbox("Display floating point NDVI image?", displayNDVIFloat);
-		dialog.addCheckbox("Stretch the visible band before creating NDVI?", stretchVisible);
-		dialog.addCheckbox("Stretch the NIR band before creating NDVI?", stretchIR);
+		dialog.addChoice("Select index type for calculation", indexTypes, indexType);
+		dialog.addCheckbox("Display Color Index image?", displayIndexColor);
+		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 1);
+		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 1);
+		dialog.addCheckbox("Display floating point Index image?", displayIndexFloat);
+		dialog.addCheckbox("Stretch the visible band before creating Index?", stretchVisible);
+		dialog.addCheckbox("Stretch the NIR band before creating Index?", stretchIR);
 		dialog.addNumericField("Saturation value for stretch", saturatedPixels, 1);
-		dialog.addChoice("Channel for Red band to create NDVI", ndviBands, ndviBands[redBandIndex]);
-		dialog.addChoice("Channel for IR band to create NDVI", ndviBands, ndviBands[irBandIndex]);
-		dialog.addChoice("Select output color table for color NDVI image", lutNames, lutName);
+		dialog.addChoice("Channel for Red band to create Index", IndexBands, IndexBands[redBandIndex]);
+		dialog.addChoice("Channel for IR band to create Index", IndexBands, IndexBands[irBandIndex]);
+		dialog.addChoice("Select output color table for color Index image", lutNames, lutName);
 		dialog.addCheckbox("Save parameters for next session", true);
 		dialog.showDialog();
 		if (dialog.wasCanceled()) {
@@ -61,18 +64,19 @@ public class Create_NDVI_FromImage implements PlugIn {
 		if (useDefaults) {
 			dialog = null;
 			// Create dialog window with default values
-			dialog = new GenericDialog("Enter variables");
+			dialog = new GenericDialog("Enter variables");;
 			dialog.addCheckbox("Load default parameters (click OK below to reload)", false);
-			dialog.addCheckbox("Output Color NDVI image?", true);
-			dialog.addNumericField("Enter the minimum NDVI value for scaling color NDVI image", -1.0, 1);
-			dialog.addNumericField("Enter the maximum NDVI value for scaling color NDVI image", 1.0, 1);
-			dialog.addCheckbox("Display floating point NDVI image?", true);
-			dialog.addCheckbox("Stretch the visible band before creating NDVI?", true);
-			dialog.addCheckbox("Stretch the NIR band before creating NDVI?", true);
+			dialog.addChoice("Select index type for calculation", indexTypes, indexTypes[0]);
+			dialog.addCheckbox("Output Color Index image?", true);
+			dialog.addNumericField("Enter the minimum Index value for scaling color Index image", -1.0, 1);
+			dialog.addNumericField("Enter the maximum Index value for scaling color Index image", 1.0, 1);
+			dialog.addCheckbox("Display floating point Index image?", true);
+			dialog.addCheckbox("Stretch the visible band before creating Index?", true);
+			dialog.addCheckbox("Stretch the NIR band before creating Index?", true);
 			dialog.addNumericField("Enter the saturation value for stretch", 2.0, 1);
-			dialog.addChoice("Channel for Red band to create NDVI", ndviBands, ndviBands[2]);
-			dialog.addChoice("Channel for IR band to create NDVI", ndviBands, ndviBands[0]);
-			dialog.addChoice("Select output color table for color NDVI image", lutNames, lutNames[0]);
+			dialog.addChoice("Channel for Red band to create Index", IndexBands, IndexBands[2]);
+			dialog.addChoice("Channel for IR band to create Index", IndexBands, IndexBands[0]);
+			dialog.addChoice("Select output color table for color Index image", lutNames, lutNames[0]);
 			dialog.addCheckbox("Save parameters for next session", false);
 			dialog.showDialog();
 			if (dialog.wasCanceled()) {
@@ -84,10 +88,11 @@ public class Create_NDVI_FromImage implements PlugIn {
 		if (useDefaults) { 
 			dialog.getNextBoolean();
 		}
-		displayNDVIColor = dialog.getNextBoolean();
+		indexType = dialog.getNextChoice();
+		displayIndexColor = dialog.getNextBoolean();
 		minColorScale = dialog.getNextNumber();
 		maxColorScale = dialog.getNextNumber();
-		displayNDVIFloat = dialog.getNextBoolean();
+		displayIndexFloat = dialog.getNextBoolean();
 		stretchVisible = dialog.getNextBoolean();
 		stretchIR = dialog.getNextBoolean();
 		saturatedPixels = dialog.getNextNumber();
@@ -98,8 +103,9 @@ public class Create_NDVI_FromImage implements PlugIn {
 
 		if (saveParameters) {
 			// Set preferences to IJ.Prefs file
-			Prefs.set("pm.fromSBImage.createNDVIColor", displayNDVIColor);
-			Prefs.set("pm.fromSBImage.createNDVIFloat", displayNDVIFloat);
+			Prefs.set("pm.fromSBImage.indexType", indexType);
+			Prefs.set("pm.fromSBImage.createIndexColor", displayIndexColor);
+			Prefs.set("pm.fromSBImage.createIndexFloat", displayIndexFloat);
 			Prefs.set("pm.fromSBImage.stretchVisible", stretchVisible);
 			Prefs.set("pm.fromSBImage.stretchIR", stretchIR);
 			Prefs.set("pm.fromSBImage.saturatedPixels", saturatedPixels);
@@ -118,10 +124,10 @@ public class Create_NDVI_FromImage implements PlugIn {
 		if (numSlices > 1) {
 			ImageStack floatStack = null;
 			ImageStack colorStack = null;
-	    	if (displayNDVIFloat) {
+	    	if (displayIndexFloat) {
     			floatStack = new ImageStack(imagePlus.getWidth(), imagePlus.getHeight());
     		}
-	    	if (displayNDVIColor) {
+	    	if (displayIndexColor) {
 	    		colorStack = new ImageStack(imagePlus.getWidth(), imagePlus.getHeight());
 	    	}
 			for (int sliceCount=1; sliceCount<=numSlices; sliceCount++) {
@@ -135,37 +141,42 @@ public class Create_NDVI_FromImage implements PlugIn {
 		    	}
 				
 				RegImagePair imagePair = new RegImagePair(sliceImagePlus, sliceImagePlus);
-		    	ndviImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+		    	if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+		    		indexImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+		    	} 
+		    	else if (indexType == "DVI (NIR-Vis)") {
+		    		indexImage = imagePair.calcDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+		    	}
 		    	
-		    	if (displayNDVIFloat) {
-		    		floatStack.addSlice(ndviImage.getProcessor());
+		    	if (displayIndexFloat) {
+		    		floatStack.addSlice(indexImage.getProcessor());
 	    		}
 		    	
-		    	if (displayNDVIColor) {
+		    	if (displayIndexColor) {
 		    		IndexColorModel cm = null;
 					LUT lut;
 					//Uncomment next line to use default float-to-byte conversion
 					//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
-					ImagePlus colorNDVI;
-					colorNDVI = NewImage.createByteImage("Color NDVI", ndviImage.getWidth(), ndviImage.getHeight(), 1, NewImage.FILL_BLACK);
+					ImagePlus colorIndex;
+					colorIndex = NewImage.createByteImage("Color Index", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
 				
-					float[] pixels = (float[])ndviImage.getProcessor().getPixels();
-					for (int y=0; y<ndviImage.getHeight(); y++) {
-						int offset = y*ndviImage.getWidth();
-						for (int x=0; x<ndviImage.getWidth(); x++) {
+					float[] pixels = (float[])indexImage.getProcessor().getPixels();
+					for (int y=0; y<indexImage.getHeight(); y++) {
+						int offset = y*indexImage.getWidth();
+						for (int x=0; x<indexImage.getWidth(); x++) {
 							int pos = offset+x;
-							colorNDVI.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
+							colorIndex.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
 						}	    						    				
 					}
-					colorStack.addSlice(colorNDVI.getProcessor());  
+					colorStack.addSlice(colorIndex.getProcessor());  
 		    	}
 
 			}
-			if (displayNDVIFloat) {
+			if (displayIndexFloat) {
 				ImagePlus imagePlusFloatStack = new ImagePlus("float stack", floatStack);
 				imagePlusFloatStack.show();
 			}
-			if (displayNDVIColor) {
+			if (displayIndexColor) {
 	    		IndexColorModel cm = null;
 
 	    		try {
@@ -180,25 +191,31 @@ public class Create_NDVI_FromImage implements PlugIn {
 			
 		} else {
 			RegImagePair imagePair = new RegImagePair(imagePlus, imagePlus);
-			ndviImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
-			if (displayNDVIFloat) {
-				ndviImage.show();
+			if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    		indexImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    	} 
+	    	else if (indexType == "DVI (NIR-Vis)") {
+	    		indexImage = imagePair.calcDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    	}
+
+			if (displayIndexFloat) {
+				indexImage.show();
 			}
 		
-			if (displayNDVIColor) {
+			if (displayIndexColor) {
 				IndexColorModel cm = null;
 				LUT lut;
 				//Uncomment next line to use default float-to-byte conversion
 				//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
-				ImagePlus colorNDVI;
-				colorNDVI = NewImage.createByteImage("Color NDVI", ndviImage.getWidth(), ndviImage.getHeight(), 1, NewImage.FILL_BLACK);
+				ImagePlus colorIndex;
+				colorIndex = NewImage.createByteImage("Color Index", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
 			
-				float[] pixels = (float[])ndviImage.getProcessor().getPixels();
-				for (int y=0; y<ndviImage.getHeight(); y++) {
-					int offset = y*ndviImage.getWidth();
-					for (int x=0; x<ndviImage.getWidth(); x++) {
+				float[] pixels = (float[])indexImage.getProcessor().getPixels();
+				for (int y=0; y<indexImage.getHeight(); y++) {
+					int offset = y*indexImage.getWidth();
+					for (int x=0; x<indexImage.getWidth(); x++) {
 						int pos = offset+x;
-						colorNDVI.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
+						colorIndex.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
 					}	    						    				
 				}
 				// Get the LUT
@@ -209,8 +226,8 @@ public class Create_NDVI_FromImage implements PlugIn {
 				}
 		
 				lut = new LUT(cm, 255.0, 0.0);
-				colorNDVI.getProcessor().setLut(lut);
-				colorNDVI.show();
+				colorIndex.getProcessor().setLut(lut);
+				colorIndex.show();
 			}
 		}
 	}

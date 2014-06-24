@@ -19,18 +19,20 @@ public class Register_Images implements PlugIn, DialogListener {
 		File lutDirectory = new File(lutLocation);
 		String[] lutNames = lutDirectory.list();
 		// Dialog variables
+		String[] indexTypes = {"NDVI (NIR-Vis)/(NIR+Vis)", "DVI (NIR-Vis)"};
 		String[] primaryRegMethodTypes = {"SIFT/Landmark correspondences", "SIFT/Landmark correspondences using reference points from first valid image pair", "bUnwarpJ"};
 		String[] secondaryRegMethodTypes = {"SIFT/Landmark correspondences", "SIFT/Landmark correspondences using last valid set of points", "bUnwarpJ"};
 		String[] transformationTypes = {"Rigid", "Affine"};
 		String[] preprocessingType = {"nir (g+b) vis (g-b)", "nir=green band vis=green band", "none"}; 
-		String[] ndviBands = {"red", "green", "blue"};
+		String[] IndexBands = {"red", "green", "blue"};
 		String[] outputImageTypes = {"tiff", "jpeg", "gif", "zip", "raw", "avi", "bmp", "fits", "png", "pgm"};
 
 		ImagePlus rawSourceImage = null;
 		ImagePlus rawTargetImage = null;
 		ImagePlus regSource = null;
 		RegImagePair regImages = null;
-		ImagePlus ndviImage = null;
+		ImagePlus indexImage = null;
+		String indexType = Prefs.get("pm.fromSBImage.indexType", indexTypes[0]);
 		String primaryRegMethod = Prefs.get("pm.reg.primaryRegMethod", primaryRegMethodTypes[0]);
 		String secondaryRegMethod = Prefs.get("pm.reg.secondaryRegMethod", secondaryRegMethodTypes[1]);
 		String transformation = Prefs.get("pm.reg.transformation", transformationTypes[0]);
@@ -39,8 +41,8 @@ public class Register_Images implements PlugIn, DialogListener {
 		int numSiftTries = (int)Prefs.get("pm.reg.numSiftTries", 1);
 		Boolean createNRG = Prefs.get("pm.reg.createNRG", true);
 		Boolean clipImages = Prefs.get("pm.reg.clipImages", true);
-		Boolean createNDVIColor = Prefs.get("pm.reg.createNDVIColor", true);
-		Boolean createNDVIFloat = Prefs.get("pm.reg.createNDVIFloat", true);
+		Boolean createIndexColor = Prefs.get("pm.reg.createIndexColor", true);
+		Boolean createIndexFloat = Prefs.get("pm.reg.createIndexFloat", true);
 		Boolean outputClipTwo = Prefs.get("pm.reg.outputClipTwo", true);
 		Boolean stretchVisible = Prefs.get("pm.reg.stretchVisible", true);
 		Boolean stretchIR = Prefs.get("pm.reg.stretchIR", true);
@@ -71,20 +73,21 @@ public class Register_Images implements PlugIn, DialogListener {
 		dialog.addNumericField("Number of tries for SIFT to find correspondence points", numSiftTries, 0);
 		dialog.addChoice("Method to improve SIFT point selection", preprocessingType, preprocessingMethod);
 		dialog.addMessage("Output image options:");
+		dialog.addChoice("Select index type for calculation", indexTypes, indexType);
 		dialog.addChoice("Output image type", outputImageTypes, fileType);
 		dialog.addCheckbox("Output NRG image?", createNRG);
 		dialog.addCheckbox("Clip images?", clipImages);
 		dialog.addCheckbox("Output clipped visible image?", outputClipTwo);
-		dialog.addCheckbox("Output Color NDVI image?", createNDVIColor);
-		dialog.addNumericField("Minimum NDVI value for scaling color NDVI image", minColorScale, 1);
-		dialog.addNumericField("Maximum NDVI value for scaling color NDVI image", maxColorScale, 1);
-		dialog.addCheckbox("Output floating point NDVI image?", createNDVIFloat);
-		dialog.addCheckbox("Stretch the visible band before creating NDVI?", stretchVisible);
-		dialog.addCheckbox("Stretch the NIR band before creating NDVI?", stretchIR);
+		dialog.addCheckbox("Output Color Index image?", createIndexColor);
+		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 1);
+		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 1);
+		dialog.addCheckbox("Output floating point Index image?", createIndexFloat);
+		dialog.addCheckbox("Stretch the visible band before creating Index?", stretchVisible);
+		dialog.addCheckbox("Stretch the NIR band before creating Index?", stretchIR);
 		dialog.addNumericField("Saturation value for stretch", saturatedPixels, 1);
-		dialog.addChoice("Channel from visible image to use for Red band to create NDVI", ndviBands, ndviBands[redBandIndex]);
-		dialog.addChoice("Channel from IR image to use for IR band to create NDVI", ndviBands, ndviBands[irBandIndex]);
-		dialog.addChoice("Select output color table for color NDVI image", lutNames, lutName);
+		dialog.addChoice("Channel from visible image to use for Red band to create Index", IndexBands, IndexBands[redBandIndex]);
+		dialog.addChoice("Channel from IR image to use for IR band to create Index", IndexBands, IndexBands[irBandIndex]);
+		dialog.addChoice("Select output color table for color Index image", lutNames, lutName);
 		dialog.addCheckbox("Save parameters for next session", true);
 		dialog.addDialogListener(this);
 		dialog.showDialog();
@@ -106,20 +109,21 @@ public class Register_Images implements PlugIn, DialogListener {
 			dialog.addNumericField("Number of tries for SIFT to find correspondence points", 1, 0);
 			dialog.addChoice("Method to improve SIFT point selection", preprocessingType, preprocessingType[2]);
 			dialog.addMessage("Output image options:");
+			dialog.addChoice("Select index type for calculation", indexTypes, indexTypes[0]);
 			dialog.addChoice("Output image type", outputImageTypes, outputImageTypes[0]);
 			dialog.addCheckbox("Output NRG image?", true);
 			dialog.addCheckbox("Clip images?", true);
 			dialog.addCheckbox("Output clipped visible image?", true);
-			dialog.addCheckbox("Output Color NDVI image?", true);
-			dialog.addNumericField("Minimum NDVI value for scaling color NDVI image", -1.0, 1);
-			dialog.addNumericField("Maximum NDVI value for scaling color NDVI image", 1.0, 1);
-			dialog.addCheckbox("Output floating point NDVI image?", true);
-			dialog.addCheckbox("Stretch the visible band before creating NDVI?", true);
-			dialog.addCheckbox("Stretch the NIR band before creating NDVI?", true);
+			dialog.addCheckbox("Output Color Index image?", true);
+			dialog.addNumericField("Minimum Index value for scaling color Index image", -1.0, 1);
+			dialog.addNumericField("Maximum Index value for scaling color Index image", 1.0, 1);
+			dialog.addCheckbox("Output floating point Index image?", true);
+			dialog.addCheckbox("Stretch the visible band before creating Index?", true);
+			dialog.addCheckbox("Stretch the NIR band before creating Index?", true);
 			dialog.addNumericField("Saturation value for stretch", 2.0, 1);
-			dialog.addChoice("Channel from visible image to use for Red band to create NDVI", ndviBands, ndviBands[0]);
-			dialog.addChoice("Channel from IR image to use for IR band to create NDVI", ndviBands, ndviBands[2]);
-			dialog.addChoice("Select output color table for color NDVI image", lutNames, lutNames[0]);
+			dialog.addChoice("Channel from visible image to use for Red band to create Index", IndexBands, IndexBands[0]);
+			dialog.addChoice("Channel from IR image to use for IR band to create Index", IndexBands, IndexBands[2]);
+			dialog.addChoice("Select output color table for color Index image", lutNames, lutNames[0]);
 			dialog.addCheckbox("Save parameters for next session", false);
 			dialog.addDialogListener(this);
 			dialog.showDialog();
@@ -138,14 +142,15 @@ public class Register_Images implements PlugIn, DialogListener {
 		transformation = dialog.getNextChoice();
 		numSiftTries = (int)dialog.getNextNumber();
 		preprocessingMethod = dialog.getNextChoice();
+		indexType = dialog.getNextChoice();
 		fileType = dialog.getNextChoice();
 		createNRG = dialog.getNextBoolean();
 		clipImages = dialog.getNextBoolean();
 		outputClipTwo = dialog.getNextBoolean();
-		createNDVIColor = dialog.getNextBoolean();
+		createIndexColor = dialog.getNextBoolean();
 		minColorScale = dialog.getNextNumber();
 		maxColorScale = dialog.getNextNumber();
-		createNDVIFloat = dialog.getNextBoolean();
+		createIndexFloat = dialog.getNextBoolean();
 		stretchVisible = dialog.getNextBoolean();
 		stretchIR = dialog.getNextBoolean();
 		saturatedPixels = dialog.getNextNumber();
@@ -162,14 +167,15 @@ public class Register_Images implements PlugIn, DialogListener {
 			Prefs.set("pm.reg.transformation", transformation);
 			Prefs.set("pm.reg.numSiftTries", numSiftTries);
 			Prefs.set("pm.reg.preprocessingMethod", preprocessingMethod);
+			Prefs.set("pm.fromSBImage.indexType", indexType);
 			Prefs.set("pm.reg.fileType", fileType);
 			Prefs.set("pm.reg.createNRG", createNRG);
 			Prefs.set("pm.reg.clipImages", clipImages);
 			Prefs.set("pm.reg.outputClipTwo", outputClipTwo);
-			Prefs.set("pm.reg.createNDVIColor", createNDVIColor);
+			Prefs.set("pm.reg.createIndexColor", createIndexColor);
 			Prefs.set("pm.reg.minColorScale", minColorScale);
 			Prefs.set("pm.reg.maxColorScale", maxColorScale);
-			Prefs.set("pm.reg.createNDVIFloat", createNDVIFloat);
+			Prefs.set("pm.reg.createIndexFloat", createIndexFloat);
 			Prefs.set("pm.reg.stretchVisible", stretchVisible);
 			Prefs.set("pm.reg.stretchIR", stretchIR);
 			Prefs.set("pm.reg.saturatedPixels", saturatedPixels);
@@ -214,20 +220,21 @@ public class Register_Images implements PlugIn, DialogListener {
 		    bufWriter.write("Select transformation type if using SIFT: " + transformation + "\n");
 		    bufWriter.write("Number of tries for SIFT to find correspondence points: " + numSiftTries + "\n");
 		    bufWriter.write("Method to improve SIFT point selection: " + preprocessingMethod + "\n");
+		    bufWriter.write("Select index type for calculation: " + indexType + "\n\n");
 		    bufWriter.write("Output image type: " + fileType + "\n");
 		    bufWriter.write("Output NRG image? " + createNRG + "\n");
 		    bufWriter.write("Clip images? " + clipImages + "\n");
 		    bufWriter.write("Output clipped visible image? " + outputClipTwo + "\n");
-		    bufWriter.write("Output Color NDVI image? " + createNDVIColor + "\n");
-		    bufWriter.write("Minimum NDVI value for scaling color NDVI image: " + minColorScale + "\n");
-		    bufWriter.write("Maximum NDVI value for scaling color NDVI image: " + maxColorScale + "\n");
-		    bufWriter.write("Output floating point NDVI image? " + createNDVIFloat + "\n");
-		    bufWriter.write("Stretch the visible band before creating NDVI? " + stretchVisible + "\n");
-		    bufWriter.write("Stretch the NIR band before creating NDVI? " + stretchIR + "\n");
+		    bufWriter.write("Output Color Index image? " + createIndexColor + "\n");
+		    bufWriter.write("Minimum Index value for scaling color Index image: " + minColorScale + "\n");
+		    bufWriter.write("Maximum Index value for scaling color Index image: " + maxColorScale + "\n");
+		    bufWriter.write("Output floating point Index image? " + createIndexFloat + "\n");
+		    bufWriter.write("Stretch the visible band before creating Index? " + stretchVisible + "\n");
+		    bufWriter.write("Stretch the NIR band before creating Index? " + stretchIR + "\n");
 		    bufWriter.write("Saturation value for stretch: " + saturatedPixels + "\n");
-		    bufWriter.write("Channel from visible image to use for Red band to create NDVI: " + redBand + "\n");
-		    bufWriter.write("Channel from IR image to use for IR band to create NDVI: " + irBand + "\n");
-		    bufWriter.write("Select output color table for color NDVI image: " + lutName + "\n\n");
+		    bufWriter.write("Channel from visible image to use for Red band to create Index: " + redBand + "\n");
+		    bufWriter.write("Channel from IR image to use for IR band to create Index: " + irBand + "\n");
+		    bufWriter.write("Select output color table for color Index image: " + lutName + "\n\n");
 		    bufWriter.write("PHOTO PAIR PROCESSING SETTINGS:\n");
 	    
 	    	for (FilePair filePair : photoPairs) {
@@ -335,27 +342,44 @@ public class Register_Images implements PlugIn, DialogListener {
 	    			else {
 	    				regImages = new RegImagePair(regSource, rawTargetImage);
 	    			}
-	    			if (createNDVIFloat | createNDVIColor) {
-	    			ndviImage = regImages.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    			if (createIndexFloat | createIndexColor) {
+	    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    					indexImage = regImages.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    				} 
+	    				else if (indexType == "DVI (NIR-Vis)") {
+	    					indexImage = regImages.calcDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
+	    				}
+	    			
 	    			}
 	    			
-	    			if (createNDVIFloat) {
-	    				IJ.save(ndviImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
+	    			if (createIndexFloat) {
+	    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    					IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
+	    				}
+	    				else if (indexType == "DVI (NIR-Vis)") {
+	    					IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float."+fileType);
+	    				}
 	    			}
-	    			if (createNDVIColor) {
+	    			if (createIndexColor) {
 	    				IndexColorModel cm = null;
 	    				LUT lut;
 	    				// Uncomment next line to use default float-to-byte conversion
 	    				//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
-	    				ImagePlus colorNDVI;
-	    				colorNDVI = NewImage.createByteImage("Color NDVI", ndviImage.getWidth(), ndviImage.getHeight(), 1, NewImage.FILL_BLACK);
+	    				ImagePlus colorIndex = null;
 	    				
-	    				float[] pixels = (float[])ndviImage.getProcessor().getPixels();
-	    				for (int y=0; y<ndviImage.getHeight(); y++) {
-	    		            int offset = y*ndviImage.getWidth();
-	    					for (int x=0; x<ndviImage.getWidth(); x++) {
+	    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    					colorIndex = NewImage.createByteImage("Color NDVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
+	    				}
+	    				else if (indexType == "DVI (NIR-Vis)") {
+	    					colorIndex = NewImage.createByteImage("Color DVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
+	    				}
+	    				
+	    				float[] pixels = (float[])indexImage.getProcessor().getPixels();
+	    				for (int y=0; y<indexImage.getHeight(); y++) {
+	    		            int offset = y*indexImage.getWidth();
+	    					for (int x=0; x<indexImage.getWidth(); x++) {
 	    						int pos = offset+x;
-	    						colorNDVI.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
+	    						colorIndex.getProcessor().putPixelValue(x, y, Math.round((pixels[pos] - minColorScale)/((maxColorScale - minColorScale) / 255.0)));
 	    					}	    						    				
 	    				}
 	    				// Get the LUT
@@ -366,9 +390,14 @@ public class Register_Images implements PlugIn, DialogListener {
 	    				}
 	    			
 	    				lut = new LUT(cm, 255.0, 0.0);
-	    				colorNDVI.getProcessor().setLut(lut);
+	    				colorIndex.getProcessor().setLut(lut);
 	    				//ImagePlus colorNDVI_Image = new ImagePlus("Color NDVI", colorNDVI);
-	    				IJ.save(colorNDVI, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+	    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    					IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+	    				}
+	    				else if (indexType == "DVI (NIR-Vis)") {
+	    					IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+fileType);
+	    				}
 	    			}
 	    	
 	    			if (outputClipTwo) {
@@ -399,8 +428,8 @@ public class Register_Images implements PlugIn, DialogListener {
 	// Method to update dialog based on user selections
 	public boolean dialogItemChanged(GenericDialog gd, AWTEvent e) {
 		Checkbox clipImagesCheckbox = (Checkbox)gd.getCheckboxes().get(3);
-		Checkbox ndviColorCheckbox = (Checkbox)gd.getCheckboxes().get(5);
-		Checkbox ndviFloatCheckbox = (Checkbox)gd.getCheckboxes().get(6);
+		Checkbox IndexColorCheckbox = (Checkbox)gd.getCheckboxes().get(5);
+		Checkbox IndexFloatCheckbox = (Checkbox)gd.getCheckboxes().get(6);
 		Checkbox stretchVisCheckbox = (Checkbox)gd.getCheckboxes().get(7);
 		Checkbox stretchNIRCheckbox = (Checkbox)gd.getCheckboxes().get(8);
 		Vector<?> choices = gd.getChoices();
@@ -413,7 +442,7 @@ public class Register_Images implements PlugIn, DialogListener {
 			((Checkbox)checkboxChoices.get(4)).setEnabled(false);
 		}
 		
-		if (ndviColorCheckbox.getState() | ndviFloatCheckbox.getState()) {
+		if (IndexColorCheckbox.getState() | IndexFloatCheckbox.getState()) {
 			((Choice)choices.get(5)).setEnabled(true);
 			((Choice)choices.get(6)).setEnabled(true);
 			((Choice)choices.get(7)).setEnabled(true);
@@ -452,7 +481,7 @@ public class Register_Images implements PlugIn, DialogListener {
 			((TextField)numTriesVector.get(0)).setEnabled(false);
 		}
 		
-		if (ndviColorCheckbox.getState()) {
+		if (IndexColorCheckbox.getState()) {
 			((Choice)choices.get(7)).setEnabled(true);
 			((TextField)numericChoices.get(3)).setEnabled(true);
 		} 
@@ -695,5 +724,3 @@ public class Register_Images implements PlugIn, DialogListener {
 	    return outPair;
 	}
 }
-
-

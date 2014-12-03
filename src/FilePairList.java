@@ -14,7 +14,7 @@ public class FilePairList extends ArrayList<FilePair>{
 	// Constructor from two File arrays, time offsets and acceptable time difference
 	FilePairList(File[] listFirst_Files, File[] listSecondFiles, long offset, double acceptableDifference) {
 		for (int i = 0; i < listSecondFiles.length; i++) { 
-			if (listSecondFiles[i].isFile()) { 
+			if (listSecondFiles[i].isFile() && !listSecondFiles[i].isHidden()) { 
 		        long timeDiff;
 		        long bestTimeDiff;
 		        long timeFirstFile = 0;
@@ -22,10 +22,11 @@ public class FilePairList extends ArrayList<FilePair>{
 		        String matchingFirst = null;
 		        // Find closest matching file last modified time
 		        for (int k = 0; k < listFirst_Files.length; k++) {
-		        	timeFirstFile = getExifTime(listFirst_Files[k]);
-		        	if (timeFirstFile == 0) return;
-		        	bestTimeDiff=999999999;
-		        	if (listFirst_Files[k].isFile()) {
+		        	if (listFirst_Files[k].isFile() && !listFirst_Files[k].isHidden()) {
+		        		timeFirstFile = getExifTime(listFirst_Files[k]);
+		        		if (timeFirstFile == 0) return;
+		        		bestTimeDiff=999999999;
+		        	
 		        		timeSecondFile = getExifTime(listSecondFiles[i]);
 		        		if (timeSecondFile == 0) return;
 		        		timeDiff = Math.abs(timeSecondFile - (timeFirstFile + offset));

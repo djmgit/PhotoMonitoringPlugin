@@ -14,7 +14,7 @@ public class Create_NDVI_FromImage implements PlugIn {
 	
 	public void run(String arg) {
 		ImagePlus imagePlus = WindowManager.getCurrentImage();
-		String[] indexTypes = {"NDVI (NIR-Vis)/(NIR+Vis)", "DVI (NIR-Vis)"};
+		String[] indexTypes = {"NDVI: (NIR-Vis)/(NIR+Vis)", "DVI: NIR-Vis"};
 		String[] IndexBands = {"red", "green", "blue"};	
 		// Get list of LUTs
 		String lutLocation = IJ.getDirectory("luts");
@@ -153,8 +153,8 @@ public class Create_NDVI_FromImage implements PlugIn {
 	    		}
 		    	
 		    	if (displayIndexColor) {
-		    		IndexColorModel cm = null;
-					LUT lut;
+		    		//IndexColorModel cm = null;
+					//LUT lut;
 					//Uncomment next line to use default float-to-byte conversion
 					//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
 					ImagePlus colorIndex;

@@ -19,7 +19,7 @@ public class Register_Images implements PlugIn, DialogListener {
 		File lutDirectory = new File(lutLocation);
 		String[] lutNames = lutDirectory.list();
 		// Dialog variables
-		String[] indexTypes = {"NDVI (NIR-Vis)/(NIR+Vis)", "DVI (NIR-Vis)"};
+		String[] indexTypes = {"NDVI: (NIR-Vis)/(NIR+Vis)", "DVI: NIR-Vis"};
 		String[] primaryRegMethodTypes = {"SIFT/Landmark correspondences", "SIFT/Landmark correspondences using reference points from first valid image pair", "bUnwarpJ"};
 		String[] secondaryRegMethodTypes = {"SIFT/Landmark correspondences", "SIFT/Landmark correspondences using last valid set of points", "bUnwarpJ"};
 		String[] transformationTypes = {"Rigid", "Affine"};

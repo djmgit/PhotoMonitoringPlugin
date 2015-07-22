@@ -15,7 +15,7 @@ import java.util.Vector;
 
 public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	public void run(String arg) {
-		String[] indexTypes = {"NDVI (NIR-Vis)/(NIR+Vis)", "DVI (NIR-Vis)"};
+		String[] indexTypes = {"NDVI: (NIR-Vis)/(NIR+Vis)", "DVI: NIR-Vis"};
 		String[] outputImageTypes = {"tiff", "jpeg", "gif", "zip", "raw", "avi", "bmp", "fits", "png", "pgm"};
 		String[] IndexBands = {"red", "green", "blue"};	
 		// Get list of LUTs

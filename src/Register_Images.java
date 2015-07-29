@@ -79,8 +79,8 @@ public class Register_Images implements PlugIn, DialogListener {
 		dialog.addCheckbox("Clip images?", clipImages);
 		dialog.addCheckbox("Output clipped visible image?", outputClipTwo);
 		dialog.addCheckbox("Output Color Index image?", createIndexColor);
-		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 1);
-		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 1);
+		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 2);
+		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 2);
 		dialog.addCheckbox("Output floating point Index image?", createIndexFloat);
 		dialog.addCheckbox("Stretch the visible band before creating Index?", stretchVisible);
 		dialog.addCheckbox("Stretch the NIR band before creating Index?", stretchIR);
@@ -115,8 +115,8 @@ public class Register_Images implements PlugIn, DialogListener {
 			dialog.addCheckbox("Clip images?", true);
 			dialog.addCheckbox("Output clipped visible image?", true);
 			dialog.addCheckbox("Output Color Index image?", true);
-			dialog.addNumericField("Minimum Index value for scaling color Index image", -1.0, 1);
-			dialog.addNumericField("Maximum Index value for scaling color Index image", 1.0, 1);
+			dialog.addNumericField("Minimum Index value for scaling color Index image", -1.0, 2);
+			dialog.addNumericField("Maximum Index value for scaling color Index image", 1.0, 2);
 			dialog.addCheckbox("Output floating point Index image?", true);
 			dialog.addCheckbox("Stretch the visible band before creating Index?", true);
 			dialog.addCheckbox("Stretch the NIR band before creating Index?", true);
@@ -343,20 +343,20 @@ public class Register_Images implements PlugIn, DialogListener {
 	    				regImages = new RegImagePair(regSource, rawTargetImage);
 	    			}
 	    			if (createIndexFloat | createIndexColor) {
-	    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    				if (indexType == indexTypes[0]) {
 	    					indexImage = regImages.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 	    				} 
-	    				else if (indexType == "DVI (NIR-Vis)") {
+	    				else if (indexType == indexTypes[1]) {
 	    					indexImage = regImages.calcDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 	    				}
 	    			
 	    			}
 	    			
 	    			if (createIndexFloat) {
-	    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    				if (indexType == indexTypes[0]) {
 	    					IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
 	    				}
-	    				else if (indexType == "DVI (NIR-Vis)") {
+	    				else if (indexType == indexTypes[1]) {
 	    					IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float."+fileType);
 	    				}
 	    			}
@@ -367,10 +367,10 @@ public class Register_Images implements PlugIn, DialogListener {
 	    				//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
 	    				ImagePlus colorIndex = null;
 	    				
-	    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    				if (indexType == indexTypes[0]) {
 	    					colorIndex = NewImage.createByteImage("Color NDVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
 	    				}
-	    				else if (indexType == "DVI (NIR-Vis)") {
+	    				else if (indexType == indexTypes[1]) {
 	    					colorIndex = NewImage.createByteImage("Color DVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
 	    				}
 	    				
@@ -392,10 +392,10 @@ public class Register_Images implements PlugIn, DialogListener {
 	    				lut = new LUT(cm, 255.0, 0.0);
 	    				colorIndex.getProcessor().setLut(lut);
 	    				//ImagePlus colorNDVI_Image = new ImagePlus("Color NDVI", colorNDVI);
-	    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    				if (indexType == indexTypes[0]) {
 	    					IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+fileType);
 	    				}
-	    				else if (indexType == "DVI (NIR-Vis)") {
+	    				else if (indexType == indexTypes[1]) {
 	    					IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+fileType);
 	    				}
 	    			}
@@ -417,6 +417,7 @@ public class Register_Images implements PlugIn, DialogListener {
 	    	
 	    		}
 	    		IJ.run("Close All");
+	    		//bufWriter.close();
 	    	}
 	    	bufWriter.close();
 	    } catch (Exception e) {

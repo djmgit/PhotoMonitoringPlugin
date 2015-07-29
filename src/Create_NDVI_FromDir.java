@@ -53,8 +53,8 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 		dialog.addMessage("Output image options:");
 		dialog.addChoice("Output image type", outputImageTypes, fileType);
 		dialog.addCheckbox("Output Color Index image?", createIndexColor);
-		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 1);
-		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 1);
+		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 2);
+		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 2);
 		dialog.addCheckbox("Output floating point Index image?", createIndexFloat);
 		dialog.addCheckbox("Stretch the visible band before creating Index?", stretchVisible);
 		dialog.addCheckbox("Stretch the NIR band before creating Index?", stretchIR);
@@ -79,8 +79,8 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 			dialog.addMessage("Output image options:");
 			dialog.addChoice("Output image type", outputImageTypes, outputImageTypes[0]);
 			dialog.addCheckbox("Output Color Index image?", true);
-			dialog.addNumericField("Enter the minimum Index value for scaling color Index image", -1.0, 1);
-			dialog.addNumericField("Enter the maximum Index value for scaling color Index image", 1.0, 1);
+			dialog.addNumericField("Enter the minimum Index value for scaling color Index image", -1.0, 2);
+			dialog.addNumericField("Enter the maximum Index value for scaling color Index image", 1.0, 2);
 			dialog.addCheckbox("Output floating point Index image?", true);
 			dialog.addCheckbox("Stretch the visible band before creating Index?", true);
 			dialog.addCheckbox("Stretch the NIR band before creating Index?", true);
@@ -189,18 +189,18 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	    	inImagePlus.show();
 	    	RegImagePair imagePair = new RegImagePair(inImagePlus, inImagePlus);
 	    	indexImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
-	    	if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    	if (indexType == indexTypes[0]) {
 	    		indexImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 	    	} 
-	    	else if (indexType == "DVI (NIR-Vis)") {
+	    	else if (indexType == indexTypes[1]) {
 	    		indexImage = imagePair.calcDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 	    	}
 	    		
 	    	if (createIndexFloat) {
-	    		if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    		if (indexType == indexTypes[0]) {
 	    			IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
 	    		}
-	    		else if (indexType == "DVI (NIR-Vis)") {
+	    		else if (indexType == indexTypes[1]) {
 	    			IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float."+fileType);
 	    		}
     		}
@@ -211,10 +211,10 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
     			// Uncomment next line to use default float-to-byte conversion
     			//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
     			ImagePlus colorIndex = null;
-    			if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+    			if (indexType == indexTypes[0]) {
     				colorIndex = NewImage.createByteImage("Color NDVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
     			}
-    			else if (indexType == "DVI (NIR-Vis)") {
+    			else if (indexType == indexTypes[1]) {
     				colorIndex = NewImage.createByteImage("Color DVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
 
     			}
@@ -237,10 +237,10 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
     			lut = new LUT(cm, 255.0, 0.0);
     			colorIndex.getProcessor().setLut(lut);
     			colorIndex.show();
-    			if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+    			if (indexType == indexTypes[0]) {
     				IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+fileType);
     			}
-    			else if (indexType == "DVI (NIR-Vis)") {
+    			else if (indexType == indexTypes[1]) {
     				IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+fileType);
     			}
     		}

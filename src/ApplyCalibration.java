@@ -231,6 +231,15 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 
 	    // Start processing one image at a time
 	    for (File inImage : inputImages) {
+	    	//Test metadata reader
+	    	double[] latLon = new double[2];
+	    	MetadataReader metaReader = new MetadataReader(inImage);
+	    	boolean hasGPS_Data = metaReader.hasGPS();
+	    	if (hasGPS_Data) {
+	    		latLon = metaReader.getLatLon();
+	    	}
+	    	
+	    	
 	    	// Open image
 	    	inImagePlus = new ImagePlus(inImage.getAbsolutePath());
 	    	// Test to see if the file is an image
@@ -286,19 +295,19 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 					}
 				}
 
-	    		if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    		if (indexType == indexTypes[0]) {
 	    			indexImage = makeNDVI(visImage, nirImage, calibrationCoefs);
 	    			indexImage.show();
 	    		} 
-	    		else if (indexType == "DVI (NIR-Vis)") {
+	    		else if (indexType == indexTypes[1]) {
 	    			indexImage = makeDVI(visImage, nirImage, calibrationCoefs);
 	    		}
 	    		
 	    		if (createIndexFloat) {
-	    			if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+	    			if (indexType == indexTypes[0]) {
 	    				IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float."+"tif");
 	    			}
-	    			else if (indexType == "DVI (NIR-Vis)") {
+	    			else if (indexType == indexTypes[1]) {
 	    				IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float."+"tif");
 	    			}
     			}
@@ -309,10 +318,10 @@ public class ApplyCalibration implements PlugIn, DialogListener {
     				// Uncomment next line to use default float-to-byte conversion
     				//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
     				ImagePlus colorIndex = null;
-    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+    				if (indexType == indexTypes[0]) {
     					colorIndex = NewImage.createByteImage("Color NDVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
     				}
-    				else if (indexType == "DVI NIR-Vis") {
+    				else if (indexType == indexTypes[1]) {
     					colorIndex = NewImage.createByteImage("Color DVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
 
     				}
@@ -335,10 +344,10 @@ public class ApplyCalibration implements PlugIn, DialogListener {
     				lut = new LUT(cm, 255.0, 0.0);
     				colorIndex.getProcessor().setLut(lut);
     				colorIndex.show();
-    				if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+    				if (indexType == indexTypes[0]) {
     					IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+"jpg");
     				}
-    				else if (indexType == "DVI (NIR-Vis)") {
+    				else if (indexType == indexTypes[1]) {
     					IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+"jpg");
     				}
     			}	    		
@@ -396,7 +405,7 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 				for (int x=0; x<inImage.getWidth(); x++) {
 					inPixel = inImage.getPixel(x, y)[0];					
 					//outPixel = inPixel / 65535;
-					outPixel = inPixel / 255;
+					outPixel = inPixel / maxScaleValue;
 					newImage.getProcessor().putPixelValue(x, y, outPixel);
 				}
 			}

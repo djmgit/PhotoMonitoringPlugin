@@ -8,6 +8,7 @@ import ij.plugin.LutLoader;
 import ij.plugin.*;
 import ij.process.*;
 import ij.ImagePlus;
+import ij.io.FileInfo;
 
 public class Create_NDVI_FromImage implements PlugIn {
 
@@ -45,8 +46,8 @@ public class Create_NDVI_FromImage implements PlugIn {
 		dialog.addCheckbox("Load default parameters (click OK below to reload)", false);
 		dialog.addChoice("Select index type for calculation", indexTypes, indexType);
 		dialog.addCheckbox("Display Color Index image?", displayIndexColor);
-		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 1);
-		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 1);
+		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 2);
+		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 2);
 		dialog.addCheckbox("Display floating point Index image?", displayIndexFloat);
 		dialog.addCheckbox("Stretch the visible band before creating Index?", stretchVisible);
 		dialog.addCheckbox("Stretch the NIR band before creating Index?", stretchIR);
@@ -68,8 +69,8 @@ public class Create_NDVI_FromImage implements PlugIn {
 			dialog.addCheckbox("Load default parameters (click OK below to reload)", false);
 			dialog.addChoice("Select index type for calculation", indexTypes, indexTypes[0]);
 			dialog.addCheckbox("Output Color Index image?", true);
-			dialog.addNumericField("Enter the minimum Index value for scaling color Index image", -1.0, 1);
-			dialog.addNumericField("Enter the maximum Index value for scaling color Index image", 1.0, 1);
+			dialog.addNumericField("Enter the minimum Index value for scaling color Index image", -1.0, 2);
+			dialog.addNumericField("Enter the maximum Index value for scaling color Index image", 1.0, 2);
 			dialog.addCheckbox("Display floating point Index image?", true);
 			dialog.addCheckbox("Stretch the visible band before creating Index?", true);
 			dialog.addCheckbox("Stretch the NIR band before creating Index?", true);
@@ -141,10 +142,10 @@ public class Create_NDVI_FromImage implements PlugIn {
 		    	}
 				
 				RegImagePair imagePair = new RegImagePair(sliceImagePlus, sliceImagePlus);
-		    	if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+		    	if (indexType == indexTypes[0]) {
 		    		indexImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 		    	} 
-		    	else if (indexType == "DVI (NIR-Vis)") {
+		    	else if (indexType == indexTypes[1]) {
 		    		indexImage = imagePair.calcDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 		    	}
 		    	
@@ -190,11 +191,19 @@ public class Create_NDVI_FromImage implements PlugIn {
 			}
 			
 		} else {
+	    	// Test metadata reader
+	    	//double[] latLon = new double[2];
+	    	//String fileName = imagePlus.getOriginalFileInfo().fileName;
+	    	//String fileDir = imagePlus.getOriginalFileInfo().directory;
+	    	//File imageFile = new File(fileDir+fileName);
+	    	//MetadataReader metaReader = new MetadataReader(imageFile);
+	    	//latLon = metaReader.getLatLon();
+			
 			RegImagePair imagePair = new RegImagePair(imagePlus, imagePlus);
-			if (indexType == "NDVI (NIR-Vis)/(NIR+Vis)") {
+			if (indexType == indexTypes[0]) {
 	    		indexImage = imagePair.calcNDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 	    	} 
-	    	else if (indexType == "DVI (NIR-Vis)") {
+	    	else if (indexType == indexTypes[1]) {
 	    		indexImage = imagePair.calcDVI(irBand, redBand, stretchVisible, stretchIR, saturatedPixels);
 	    	}
 

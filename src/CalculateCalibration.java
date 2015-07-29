@@ -203,10 +203,22 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 		
 		ImagePlus visImage = scaleImage(imageBands[visBandIndex], "visImage", maxScaleValue);
 		ImagePlus nirImage = scaleImage(imageBands[nirBandIndex], "nirImage", maxScaleValue);
-			
+		
 		if(removeGamma){
 			for (int y=0; y<nirImage.getHeight(); y++) {
 				for (int x=0; x<nirImage.getWidth(); x++) {	
+					//nirPixel = nirImage.getProcessor().getPixelValue(x, y);
+					//visPixel = visImage.getProcessor().getPixelValue(x, y);
+/*					if(nirPixel <= 0.03928) {
+						nirPixel = nirPixel/12.92;
+					} else {
+						nirPixel = Math.pow((nirPixel+0.055)/1.055, 2.4);
+					}
+					if(visPixel <= 0.03928) {
+						visPixel = visPixel/12.92;
+					} else {
+						visPixel = Math.pow((visPixel+0.055)/1.055, 2.4);
+					}*/
 					nirPixel = Math.pow((nirImage.getProcessor().getPixelValue(x, y)), gamma);
 					visPixel = Math.pow((visImage.getProcessor().getPixelValue(x, y)), gamma);
 					visImage.getProcessor().putPixelValue(x, y, visPixel);

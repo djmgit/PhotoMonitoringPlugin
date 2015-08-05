@@ -25,8 +25,11 @@ public class Register_Images implements PlugIn, DialogListener {
 		String[] transformationTypes = {"Rigid", "Affine"};
 		String[] preprocessingType = {"nir (g+b) vis (g-b)", "nir=green band vis=green band", "none"}; 
 		String[] IndexBands = {"red", "green", "blue"};
-		String[] outputImageTypes = {"tiff", "jpeg", "gif", "zip", "raw", "avi", "bmp", "fits", "png", "pgm"};
-
+		String[] exifImageArray = {"visible", "nir"};
+		WriteEXIF exifWriter = null;
+		File outFile = null;
+		File tempFile = null;
+		File inImage = null;
 		ImagePlus rawSourceImage = null;
 		ImagePlus rawTargetImage = null;
 		ImagePlus regSource = null;
@@ -49,7 +52,7 @@ public class Register_Images implements PlugIn, DialogListener {
 		double saturatedPixels = Prefs.get("pm.reg.saturatedPixels", 2.0);
 		double maxColorScale = Prefs.get("pm.reg.maxColorScale", 1.0);
 		double minColorScale = Prefs.get("pm.reg.minColorScale", -1.0);;
-		String fileType = Prefs.get("pm.reg.fileType", outputImageTypes[0]);
+		String exifImageReference = Prefs.get("pm.reg.exifImageReference", exifImageArray[0]);
 		String lutName = Prefs.get("pm.reg.lutName", lutNames[0]);
 		String logName = "log.txt";
 		String outFileBase = "";
@@ -74,7 +77,7 @@ public class Register_Images implements PlugIn, DialogListener {
 		dialog.addChoice("Method to improve SIFT point selection", preprocessingType, preprocessingMethod);
 		dialog.addMessage("Output image options:");
 		dialog.addChoice("Select index type for calculation", indexTypes, indexType);
-		dialog.addChoice("Output image type", outputImageTypes, fileType);
+		dialog.addChoice("Image to copy EXIF metadata from", exifImageArray, exifImageReference);
 		dialog.addCheckbox("Output NRG image?", createNRG);
 		dialog.addCheckbox("Clip images?", clipImages);
 		dialog.addCheckbox("Output clipped visible image?", outputClipTwo);
@@ -110,7 +113,7 @@ public class Register_Images implements PlugIn, DialogListener {
 			dialog.addChoice("Method to improve SIFT point selection", preprocessingType, preprocessingType[2]);
 			dialog.addMessage("Output image options:");
 			dialog.addChoice("Select index type for calculation", indexTypes, indexTypes[0]);
-			dialog.addChoice("Output image type", outputImageTypes, outputImageTypes[0]);
+			dialog.addChoice("Image to copy EXIF metadata from", exifImageArray, exifImageArray[0]);
 			dialog.addCheckbox("Output NRG image?", true);
 			dialog.addCheckbox("Clip images?", true);
 			dialog.addCheckbox("Output clipped visible image?", true);
@@ -143,7 +146,7 @@ public class Register_Images implements PlugIn, DialogListener {
 		numSiftTries = (int)dialog.getNextNumber();
 		preprocessingMethod = dialog.getNextChoice();
 		indexType = dialog.getNextChoice();
-		fileType = dialog.getNextChoice();
+		exifImageReference = dialog.getNextChoice();
 		createNRG = dialog.getNextBoolean();
 		clipImages = dialog.getNextBoolean();
 		outputClipTwo = dialog.getNextBoolean();
@@ -168,7 +171,7 @@ public class Register_Images implements PlugIn, DialogListener {
 			Prefs.set("pm.reg.numSiftTries", numSiftTries);
 			Prefs.set("pm.reg.preprocessingMethod", preprocessingMethod);
 			Prefs.set("pm.fromSBImage.indexType", indexType);
-			Prefs.set("pm.reg.fileType", fileType);
+			Prefs.set("pm.reg.exifImageReference", exifImageReference);
 			Prefs.set("pm.reg.createNRG", createNRG);
 			Prefs.set("pm.reg.clipImages", clipImages);
 			Prefs.set("pm.reg.outputClipTwo", outputClipTwo);
@@ -221,7 +224,6 @@ public class Register_Images implements PlugIn, DialogListener {
 		    bufWriter.write("Number of tries for SIFT to find correspondence points: " + numSiftTries + "\n");
 		    bufWriter.write("Method to improve SIFT point selection: " + preprocessingMethod + "\n");
 		    bufWriter.write("Select index type for calculation: " + indexType + "\n\n");
-		    bufWriter.write("Output image type: " + fileType + "\n");
 		    bufWriter.write("Output NRG image? " + createNRG + "\n");
 		    bufWriter.write("Clip images? " + clipImages + "\n");
 		    bufWriter.write("Output clipped visible image? " + outputClipTwo + "\n");
@@ -334,6 +336,12 @@ public class Register_Images implements PlugIn, DialogListener {
 		    		}
 		    	}
 	    		bufWriter.flush();
+    			if (exifImageReference==exifImageArray[0]) {
+    				inImage = new File(filePair.getSecond().trim());
+    			}
+    			else {
+    				inImage = new File(filePair.getFirst().trim());
+    			}
 	    
 	    		if (continueProcessing) {
 	    			if (clipImages) {
@@ -354,10 +362,10 @@ public class Register_Images implements PlugIn, DialogListener {
 	    			
 	    			if (createIndexFloat) {
 	    				if (indexType == indexTypes[0]) {
-	    					IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
+	    					IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float.tif");
 	    				}
 	    				else if (indexType == indexTypes[1]) {
-	    					IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float."+fileType);
+	    					IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float.tif");
 	    				}
 	    			}
 	    			if (createIndexColor) {
@@ -392,16 +400,31 @@ public class Register_Images implements PlugIn, DialogListener {
 	    				lut = new LUT(cm, 255.0, 0.0);
 	    				colorIndex.getProcessor().setLut(lut);
 	    				//ImagePlus colorNDVI_Image = new ImagePlus("Color NDVI", colorNDVI);
+	    				String tempFileName = outDirectory+outFileBase+"IndexColorTemp."+"jpg";
+	    				tempFile = new File(tempFileName);
+	    				IJ.save(colorIndex, tempFileName);
 	    				if (indexType == indexTypes[0]) {
-	    					IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+	    					//IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+	    					outFile = new File(outDirectory+outFileBase+"_NDVI_Color."+"jpg");
 	    				}
 	    				else if (indexType == indexTypes[1]) {
-	    					IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+fileType);
+	    					//IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+fileType);
+	    					outFile = new File(outDirectory+outFileBase+"_DVI_Color."+"jpg");
 	    				}
 	    			}
+
+	    			exifWriter = new WriteEXIF(inImage, outFile, tempFile);
+					exifWriter.copyEXIF();
 	    	
 	    			if (outputClipTwo) {
-	    				IJ.save(regImages.getSecond(), outDirectory+outFileBase+"_Clipped."+fileType);
+	    				//IJ.save(regImages.getSecond(), outDirectory+outFileBase+"_Clipped."+fileType);
+	    				String tempFileName = outDirectory+outFileBase+"ClippedTemp.jpg";
+	    				tempFile = new File(tempFileName);
+	    				IJ.save(regImages.getSecond(), tempFileName);
+	    				outFile = new File(outDirectory+outFileBase+"_Clipped.jpg");
+	    				inImage = new File(filePair.getSecond().trim());  // To make sure EXIF comes from visible image
+	    		    	exifWriter = new WriteEXIF(inImage, outFile, tempFile);
+	    				exifWriter.copyEXIF();
 	    			}
 	    	
 	    			if (createNRG) {
@@ -412,7 +435,19 @@ public class Register_Images implements PlugIn, DialogListener {
 	    				colorNRG.setChannel(2, secondCP.getChannel(1, null));
 	    				colorNRG.setChannel(3, secondCP.getChannel(2, null));
 	    				ImagePlus nrgImage = new ImagePlus("NRG Image", colorNRG);
-	    				IJ.save(nrgImage, outDirectory+outFileBase+"_NRG."+fileType);
+	    				//IJ.save(nrgImage, outDirectory+outFileBase+"_NRG."+fileType);
+	    				String tempFileName = outDirectory+outFileBase+"NRGTemp.jpg";
+	    				tempFile = new File(tempFileName);
+	    				IJ.save(nrgImage, tempFileName);
+	        			if (exifImageReference==exifImageArray[0]) {
+	        				inImage = new File(filePair.getSecond().trim());
+	        			}
+	        			else {
+	        				inImage = new File(filePair.getFirst().trim());
+	        			}
+	    				outFile = new File(outDirectory+outFileBase+"_NRG.jpg");
+	    		    	exifWriter = new WriteEXIF(inImage, outFile, tempFile);
+	    				exifWriter.copyEXIF();
 	    			}
 	    	
 	    		}

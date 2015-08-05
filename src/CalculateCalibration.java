@@ -48,7 +48,7 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 
 		// Initialize variables from IJ.Prefs file
 		int visBandIndex = (int)Prefs.get("pm.calibrate.visBandIndex", 0); 
-		int nirBandIndex = (int)Prefs.get("pm.calibrate.irBandIndex", 2);
+		int nirBandIndex = (int)Prefs.get("pm.calibrate.nirBandIndex", 2);
 		Boolean subtractNIR = Prefs.get("pm.calibrate.subtractNIR", true);
 		double percentToSubtract = Prefs.get("pm.calibrate.percentToSubtract", 80.0);
 		Boolean removeGamma = Prefs.get("pm.calibrate.removeGamma", false);
@@ -138,12 +138,15 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 		// Open target reference file, read each line and fill vis and nir target reference arrays
 	    BufferedReader fileReader = null;
 	    int numLines = 0;
+	    String line = null;
 	    try {
 	         String fullLine = "";
 	         fileReader = new BufferedReader(new FileReader(targetDirectory+targetFileName));	            
 	         // Read line to count the number of lines
-	         while (fileReader.readLine() != null) {
-	            numLines++;
+	         while ((line = fileReader.readLine()) != null) {
+	        	 if (line.length() > 0) {
+	        		 numLines++;
+	        	 }
 	         }
 	         fileReader.close();
 	         fileReader = new BufferedReader(new FileReader(targetDirectory+targetFileName));
@@ -154,8 +157,10 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 	             
 	    	//Read lines to get target data
 	    	int counter = 0;
-	    	while ((fullLine = fileReader.readLine()) != null) {
+	    	//while ((fullLine = fileReader.readLine()) != null) {
+	    	for (int i=0; i < numLines; i++) {
 	    		//Parse each line into target reference values
+	    		fullLine = fileReader.readLine();
 	    		String[] dataValues = fullLine.split(",");
 	    		visRefValues[counter] = (Double.parseDouble(dataValues[0]));
 	    		nirRefValues[counter] = (Double.parseDouble(dataValues[1]));
@@ -197,10 +202,7 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 		ImagePlus[] imageBands = ChannelSplitter.split(imp);
 		//ImagePlus visImage = imageBands[visBandIndex];
 		//ImagePlus nirImage = imageBands[nirBandIndex];
-		
-		
 
-		
 		ImagePlus visImage = scaleImage(imageBands[visBandIndex], "visImage", maxScaleValue);
 		ImagePlus nirImage = scaleImage(imageBands[nirBandIndex], "nirImage", maxScaleValue);
 		
@@ -315,7 +317,7 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 		   	bufWriter.write( "   slope: "+IJ.d2s(nirRegressionParams[1],8)+"\n");
 		   	bufWriter.write("\n");
 		    bufWriter.write("Subtract NIR from visible:"+subtractNIR + "\n");
-		    bufWriter.write("Percent of NIR to subtract: "+percentToSubtract + "\n");
+		    bufWriter.write("Percent of NIR to subtract: "+percentToSubtract*100 + "\n");
 		    bufWriter.write("Remove gamma effect:"+removeGamma + "\n");
 		    bufWriter.write("Gamma factor: "+gamma + "\n");
 		    bufWriter.write("\n");
@@ -359,12 +361,10 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 			for (int y=0; y<inImage.getHeight(); y++) {
 				for (int x=0; x<inImage.getWidth(); x++) {
 					inPixel = inImage.getPixel(x, y)[0];					
-					//outPixel = inPixel / 65535;
-					outPixel = inPixel / 255;
+					outPixel = inPixel / maxScaleValue;
 					newImage.getProcessor().putPixelValue(x, y, outPixel);
 				}
 			}
-			//newImage.show();
 			return newImage;
 	}
 	

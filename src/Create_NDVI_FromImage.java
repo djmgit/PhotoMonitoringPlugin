@@ -4,8 +4,8 @@ import ij.gui.*;
 import java.awt.image.IndexColorModel;
 import java.io.File;
 import java.io.IOException;
-import ij.plugin.LutLoader;
 import ij.plugin.*;
+import ij.plugin.frame.RoiManager;
 import ij.process.*;
 import ij.ImagePlus;
 import ij.io.FileInfo;
@@ -15,6 +15,11 @@ public class Create_NDVI_FromImage implements PlugIn {
 	
 	public void run(String arg) {
 		ImagePlus imagePlus = WindowManager.getCurrentImage();
+		if (imagePlus == null) {
+			IJ.error("This plugin requires that an image is displayed. Please open an image and try again");
+	    	return;
+		}
+		
 		String[] indexTypes = {"NDVI: (NIR-Vis)/(NIR+Vis)", "DVI: NIR-Vis"};
 		String[] IndexBands = {"red", "green", "blue"};	
 		// Get list of LUTs

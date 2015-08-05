@@ -16,14 +16,15 @@ import java.util.Vector;
 public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	public void run(String arg) {
 		String[] indexTypes = {"NDVI: (NIR-Vis)/(NIR+Vis)", "DVI: NIR-Vis"};
-		String[] outputImageTypes = {"tiff", "jpeg", "gif", "zip", "raw", "avi", "bmp", "fits", "png", "pgm"};
+		//String[] outputImageTypes = {"tiff", "jpeg", "gif", "zip", "raw", "avi", "bmp", "fits", "png", "pgm"};
 		String[] IndexBands = {"red", "green", "blue"};	
 		// Get list of LUTs
 		String lutLocation = IJ.getDirectory("luts");
 		File lutDirectory = new File(lutLocation);
 		String[] lutNames = lutDirectory.list();
 		String logName = "log.txt";
-		
+		File outFile = null;
+		File tempFile = null;
 		ImagePlus inImagePlus = null;
 		ImagePlus indexImage = null;
 		String outFileBase = "";
@@ -33,7 +34,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 		
 		// Initialize variables from IJ.Prefs file
 		String indexType = Prefs.get("pm.fromSBImage.indexType", indexTypes[0]);
-		String fileType = Prefs.get("pm.fromSBDir.fromSBDir.fileType", outputImageTypes[0]);
+		//String fileType = Prefs.get("pm.fromSBDir.fromSBDir.fileType", outputImageTypes[0]);
 		Boolean createIndexColor = Prefs.get("pm.fromSBDir.createIndexColor", true);
 		Boolean createIndexFloat = Prefs.get("pm.fromSBDir.createIndexFloat", true);
 		Boolean stretchVisible = Prefs.get("pm.fromSBDir.stretchVisible", true);
@@ -51,7 +52,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 		dialog.addCheckbox("Load default parameters (click OK below to reload)", false);
 		dialog.addChoice("Select index type for calculation", indexTypes, indexType);
 		dialog.addMessage("Output image options:");
-		dialog.addChoice("Output image type", outputImageTypes, fileType);
+		//dialog.addChoice("Output image type", outputImageTypes, fileType);
 		dialog.addCheckbox("Output Color Index image?", createIndexColor);
 		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 2);
 		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 2);
@@ -77,7 +78,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 			dialog.addCheckbox("Load default parameters (click OK below to reload)", false);
 			dialog.addChoice("Select index type for calculation", indexTypes, indexTypes[0]);
 			dialog.addMessage("Output image options:");
-			dialog.addChoice("Output image type", outputImageTypes, outputImageTypes[0]);
+			//dialog.addChoice("Output image type", outputImageTypes, outputImageTypes[0]);
 			dialog.addCheckbox("Output Color Index image?", true);
 			dialog.addNumericField("Enter the minimum Index value for scaling color Index image", -1.0, 2);
 			dialog.addNumericField("Enter the maximum Index value for scaling color Index image", 1.0, 2);
@@ -101,7 +102,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 			dialog.getNextBoolean();
 		}
 		indexType = dialog.getNextChoice();
-		fileType = dialog.getNextChoice();
+		//fileType = dialog.getNextChoice();
 		createIndexColor = dialog.getNextBoolean();
 		minColorScale = dialog.getNextNumber();
 		maxColorScale = dialog.getNextNumber();
@@ -117,7 +118,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 		if (saveParameters) {
 			// Set preferences to IJ.Prefs file
 			Prefs.set("pm.fromSBImage.indexType", indexType);
-			Prefs.set("pm.fromSBDir.fileType", fileType);
+			//Prefs.set("pm.fromSBDir.fileType", fileType);
 			Prefs.set("pm.fromSBDir.createIndexColor", createIndexColor);
 			Prefs.set("pm.fromSBDir.createIndexFloat", createIndexFloat);
 			Prefs.set("pm.fromSBDir.stretchVisible", stretchVisible);
@@ -157,7 +158,7 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	    	// Write parameter settings to log file
 	    	bufWriter.write("PARAMETER SETTINGS:\n");
 	    	bufWriter.write("Select index type for calculation: " + indexType + "\n\n");
-		    bufWriter.write("Output image type: " + fileType + "\n");
+		    //bufWriter.write("Output image type: " + fileType + "\n");
 		    bufWriter.write("Output Color Index image? " + createIndexColor + "\n");
 		    bufWriter.write("Minimum Index value for scaling color Index image: " + minColorScale + "\n");
 		    bufWriter.write("Maximum Index value for scaling color Index image: " + maxColorScale + "\n");
@@ -198,10 +199,10 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
 	    		
 	    	if (createIndexFloat) {
 	    		if (indexType == indexTypes[0]) {
-	    			IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float."+fileType);
+	    			IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float.tif");
 	    		}
 	    		else if (indexType == indexTypes[1]) {
-	    			IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float."+fileType);
+	    			IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float.tif");
 	    		}
     		}
 	    		
@@ -237,14 +238,21 @@ public class Create_NDVI_FromDir implements PlugIn, DialogListener {
     			lut = new LUT(cm, 255.0, 0.0);
     			colorIndex.getProcessor().setLut(lut);
     			colorIndex.show();
+				String tempFileName = outDirectory+outFileBase+"IndexColorTemp.jpg";
+				tempFile = new File(tempFileName);
+				IJ.save(colorIndex, tempFileName);
     			if (indexType == indexTypes[0]) {
-    				IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+    				//IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+fileType);
+    				outFile = new File(outDirectory+outFileBase+"_NDVI_Color.jpg");
     			}
     			else if (indexType == indexTypes[1]) {
-    				IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+fileType);
+    				//IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+fileType);
+    				outFile = new File(outDirectory+outFileBase+"_DVI_Color.jpg");
     			}
     		}
-	    		IJ.run("Close All");
+	    	IJ.run("Close All");
+	    	WriteEXIF exifWriter = new WriteEXIF(inImage, outFile, tempFile);
+			exifWriter.copyEXIF();
 	    }
 	}
 	

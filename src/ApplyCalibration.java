@@ -22,11 +22,13 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 		File lutDirectory = new File(lutLocation);
 		String[] lutNames = lutDirectory.list();
 		String logName = "log.txt";
-		
+		File outFile = null;
+		File tempFile = null;
 		ImagePlus inImagePlus = null;
 		ImagePlus indexImage = null;
 		String outFileBase = "";
 		int visBand, nirBand;
+		ImagePlus colorIndex = null;
 		// Calibration coefficients stored as visible intercept, slope, NIR intercept, slope
 		double[] calibrationCoefs = new double[4];
 		Boolean subtractNIR = null;
@@ -231,15 +233,6 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 
 	    // Start processing one image at a time
 	    for (File inImage : inputImages) {
-	    	//Test metadata reader
-	    	double[] latLon = new double[2];
-	    	MetadataReader metaReader = new MetadataReader(inImage);
-	    	boolean hasGPS_Data = metaReader.hasGPS();
-	    	if (hasGPS_Data) {
-	    		latLon = metaReader.getLatLon();
-	    	}
-	    	
-	    	
 	    	// Open image
 	    	inImagePlus = new ImagePlus(inImage.getAbsolutePath());
 	    	// Test to see if the file is an image
@@ -317,7 +310,7 @@ public class ApplyCalibration implements PlugIn, DialogListener {
     				LUT lut;
     				// Uncomment next line to use default float-to-byte conversion
     				//ImageProcessor colorNDVI = ndviImage.getProcessor().convertToByte(true);
-    				ImagePlus colorIndex = null;
+    				colorIndex = null;
     				if (indexType == indexTypes[0]) {
     					colorIndex = NewImage.createByteImage("Color NDVI", indexImage.getWidth(), indexImage.getHeight(), 1, NewImage.FILL_BLACK);
     				}
@@ -344,16 +337,22 @@ public class ApplyCalibration implements PlugIn, DialogListener {
     				lut = new LUT(cm, 255.0, 0.0);
     				colorIndex.getProcessor().setLut(lut);
     				colorIndex.show();
+    				String tempFileName = outDirectory+outFileBase+"IndexColorTemp."+"jpg";
+    				tempFile = new File(tempFileName);
+    				IJ.save(colorIndex, tempFileName);
     				if (indexType == indexTypes[0]) {
-    					IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+"jpg");
+    					//IJ.save(colorIndex, outDirectory+outFileBase+"_NDVI_Color."+"jpg");
+    					outFile = new File(outDirectory+outFileBase+"_NDVI_Color."+"jpg");
     				}
     				else if (indexType == indexTypes[1]) {
-    					IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+"jpg");
+    					//IJ.save(colorIndex, outDirectory+outFileBase+"_DVI_Color."+"jpg");
+    					outFile = new File(outDirectory+outFileBase+"_DVI_Color."+"jpg");
     				}
-    			}	    		
-	    	}
-	    	
-	    	IJ.run("Close All");
+    			}
+		    	IJ.run("Close All");
+		    	WriteEXIF exifWriter = new WriteEXIF(inImage, outFile, tempFile);
+				exifWriter.copyEXIF();
+	    	}	
 	    }
 	}
 	
@@ -404,7 +403,6 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 			for (int y=0; y<inImage.getHeight(); y++) {
 				for (int x=0; x<inImage.getWidth(); x++) {
 					inPixel = inImage.getPixel(x, y)[0];					
-					//outPixel = inPixel / 65535;
 					outPixel = inPixel / maxScaleValue;
 					newImage.getProcessor().putPixelValue(x, y, outPixel);
 				}

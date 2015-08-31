@@ -16,7 +16,7 @@ import java.util.Vector;
 public class ApplyCalibration implements PlugIn, DialogListener {
 	public void run(String arg) {
 		String[] indexTypes = {"NDVI (NIR-Vis)/(NIR+Vis)", "DVI NIR-Vis"};
-				String[] IndexBands = {"red", "green", "blue"};	
+		//String[] IndexBands = {"red", "green", "blue"};	
 		// Get list of LUTs
 		String lutLocation = IJ.getDirectory("luts");
 		File lutDirectory = new File(lutLocation);
@@ -27,7 +27,8 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 		ImagePlus inImagePlus = null;
 		ImagePlus indexImage = null;
 		String outFileBase = "";
-		int visBand, nirBand;
+		int visBand = 0;
+		int nirBand = 0;
 		ImagePlus colorIndex = null;
 		// Calibration coefficients stored as visible intercept, slope, NIR intercept, slope
 		double[] calibrationCoefs = new double[4];
@@ -45,8 +46,8 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 		double maxColorScale = Prefs.get("pm.ac.maxColorScale", 1.0);
 		double minColorScale = Prefs.get("pm.ac.minColorScale", -1.0);
 		String lutName = Prefs.get("pm.ac.lutName", lutNames[0]);
-		int visBandIndex = (int)Prefs.get("pm.ac.visibleBandIndex", 0); 
-		int nirBandIndex = (int)Prefs.get("pm.ac.nirBandIndex", 2);
+		//int visBandIndex = (int)Prefs.get("pm.ac.visibleBandIndex", 0); 
+		//int nirBandIndex = (int)Prefs.get("pm.ac.nirBandIndex", 2);
 		
 		// Create dialog window
 		GenericDialog dialog = new GenericDialog("Enter variables");
@@ -57,8 +58,8 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 		dialog.addNumericField("Minimum Index value for scaling color Index image", minColorScale, 1);
 		dialog.addNumericField("Maximum Index value for scaling color Index image", maxColorScale, 1);
 		dialog.addCheckbox("Output floating point Index image?", createIndexFloat);
-		dialog.addChoice("Channel for visible band to create Index", IndexBands, IndexBands[visBandIndex]);
-		dialog.addChoice("Channel for IR band to create Index", IndexBands, IndexBands[nirBandIndex]);
+		//dialog.addChoice("Channel for visible band to create Index", IndexBands, IndexBands[visBandIndex]);
+		//dialog.addChoice("Channel for IR band to create Index", IndexBands, IndexBands[nirBandIndex]);
 		dialog.addChoice("Select output color table for color Index image", lutNames, lutName);
 		dialog.addCheckbox("Save parameters for next session", true);
 		dialog.addDialogListener(this);
@@ -79,8 +80,8 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 			dialog.addNumericField("Enter the minimum Index value for scaling color Index image", -1.0, 1);
 			dialog.addNumericField("Enter the maximum Index value for scaling color Index image", 1.0, 1);
 			dialog.addCheckbox("Output floating point Index image?", true);
-			dialog.addChoice("Channel for visible band to create Index", IndexBands, IndexBands[2]);
-			dialog.addChoice("Channel for IR band to create Index", IndexBands, IndexBands[0]);
+			//dialog.addChoice("Channel for visible band to create Index", IndexBands, IndexBands[2]);
+			//dialog.addChoice("Channel for IR band to create Index", IndexBands, IndexBands[0]);
 			dialog.addChoice("Select output color table for color Index image", lutNames, lutNames[0]);
 			dialog.addCheckbox("Save parameters for next session", false);
 			dialog.addDialogListener(this);
@@ -99,8 +100,8 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 		minColorScale = dialog.getNextNumber();
 		maxColorScale = dialog.getNextNumber();
 		createIndexFloat = dialog.getNextBoolean();
-		visBand = dialog.getNextChoiceIndex();
-		nirBand = dialog.getNextChoiceIndex();
+		//visBand = dialog.getNextChoiceIndex();
+		//nirBand = dialog.getNextChoiceIndex();
 		lutName  = dialog.getNextChoice();
 		saveParameters  = dialog.getNextBoolean();
 	
@@ -112,8 +113,8 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 			Prefs.set("pm.ac.maxColorScale", maxColorScale);
 			Prefs.set("pm.ac.minColorScale", minColorScale);
 			Prefs.set("pm.ac.lutName", lutName);
-			Prefs.set("pm.ac.visibleBandIndex", visBand);
-			Prefs.set("pm.ac.nirBandIndex", nirBand);
+			//Prefs.set("pm.ac.visibleBandIndex", visBand);
+			//Prefs.set("pm.ac.nirBandIndex", nirBand);
 		
 			// Save preferences to IJ.Prefs file
 			Prefs.savePreferences();
@@ -191,7 +192,15 @@ public class ApplyCalibration implements PlugIn, DialogListener {
                 if (counter == 17) {
                     String[] dataValues = fullLine.split(":");
                     gamma = (Double.parseDouble(dataValues[1]));
-                }               
+                }
+                if (counter == 19) {
+                    String[] dataValues = fullLine.split(":");
+                    visBand = (Integer.parseInt(dataValues[1].trim()))-1;
+                }
+                if (counter == 20) {
+                    String[] dataValues = fullLine.split(":");
+                    nirBand = (Integer.parseInt(dataValues[1].trim()))-1;
+                }
                 counter++;
             }
         }
@@ -224,12 +233,16 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 		    bufWriter.write("Percent of NIR to subtract: "+percentToSubtract + "\n");
 		    bufWriter.write("Remove gamma effect? "+removeGamma + "\n");
 		    bufWriter.write("Gammafactor: "+gamma + "\n");
+		    bufWriter.write("Visible band: " + (visBand+1) + "\n");
+		    bufWriter.write("Near-infrared band: " + (nirBand+1) + "\n");
 		    bufWriter.write("Select output color table for color Index image: " + lutName + "\n\n");
 	    	bufWriter.close();
 	    } catch (Exception e) {
 	    	IJ.error("Error writing log file", e.getMessage());
 	    	return;
 	    }
+     	
+     	percentToSubtract = percentToSubtract / 100.0;
 
 	    // Start processing one image at a time
 	    for (File inImage : inputImages) {
@@ -243,12 +256,12 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 				double visPixel = 0.0;
 				double nirPixel = 0.0;
 				
-				int maxScaleValue = 0;
+/*				int maxScaleValue = 0;
 				if(inImagePlus.getType() == ImagePlus.COLOR_RGB) {
 					maxScaleValue = 255;
 				} else {
 					maxScaleValue = 65535;
-				}
+				}*/
 				
 				if (inImagePlus.getNChannels() == 1) {
 					//IJ.run("Make Composite");
@@ -261,11 +274,12 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 				ImagePlus[] imageBands = ChannelSplitter.split(inImagePlus);
 				//ImagePlus visImage = imageBands[visBandIndex];
 				//ImagePlus nirImage = imageBands[nirBandIndex];		
-				ImagePlus visImage = scaleImage(imageBands[visBandIndex], "visImage", maxScaleValue);
-				ImagePlus nirImage = scaleImage(imageBands[nirBandIndex], "nirImage", maxScaleValue);
+				ImagePlus visImage = scaleImage(imageBands[visBand], "visImage");
+				ImagePlus nirImage = scaleImage(imageBands[nirBand], "nirImage");
 
 				
 				if(removeGamma){
+					//double undoGamma = 1/gamma;
 					for (int y=0; y<nirImage.getHeight(); y++) {
 						for (int x=0; x<nirImage.getWidth(); x++) {					
 							nirPixel = Math.pow((nirImage.getProcessor().getPixelValue(x, y)), gamma);
@@ -278,7 +292,6 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 				
 				if(subtractNIR){
 					// Subtract some of the NIR from visible band
-					percentToSubtract = percentToSubtract / 100.0;
 					for (int y=0; y<nirImage.getHeight(); y++) {
 						for (int x=0; x<nirImage.getWidth(); x++) {					
 							nirPixel = nirImage.getProcessor().getPixelValue(x, y);
@@ -287,6 +300,8 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 						}
 					}
 				}
+				//visImage.show();
+				//nirImage.show();
 
 	    		if (indexType == indexTypes[0]) {
 	    			indexImage = makeNDVI(visImage, nirImage, calibrationCoefs);
@@ -299,10 +314,14 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 	    		if (createIndexFloat) {
 	    			if (indexType == indexTypes[0]) {
 	    				IJ.save(indexImage, outDirectory+outFileBase+"_NDVI_Float."+"tif");
+	    				//outFile = new File(outDirectory+outFileBase+"_NDVI_Float.tif");
 	    			}
 	    			else if (indexType == indexTypes[1]) {
 	    				IJ.save(indexImage, outDirectory+outFileBase+"_DVI_Float."+"tif");
 	    			}
+	    			//tempFile = null;
+	    			//WriteEXIF exifWriter = new WriteEXIF(inImage, outFile, tempFile);
+					//exifWriter.copyExifFromJpeg2Tiff(indexImage);
     			}
 	    		
 	    		if (createIndexColor) {
@@ -396,14 +415,18 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 	}
 	
 	// Method to scale bands to 0 - 1
-	public ImagePlus scaleImage(ImagePlus inImage, String imageName, int maxScaleValue) {
+	public ImagePlus scaleImage(ImagePlus inImage, String imageName) {
 			double inPixel=0.0, outPixel = 0.0;
 			ImagePlus newImage;
+			double minVal = inImage.getProcessor().getMin();
+			double maxVal = inImage.getProcessor().getMax();
+			double inverseRange = 1 / (maxVal - minVal);
 			newImage = NewImage.createFloatImage(imageName, inImage.getWidth(), inImage.getHeight(), 1, NewImage.FILL_BLACK);
 			for (int y=0; y<inImage.getHeight(); y++) {
 				for (int x=0; x<inImage.getWidth(); x++) {
 					inPixel = inImage.getPixel(x, y)[0];					
-					outPixel = inPixel / maxScaleValue;
+					//outPixel = inPixel / maxScaleValue;
+					outPixel = inverseRange * (inPixel - minVal);
 					newImage.getProcessor().putPixelValue(x, y, outPixel);
 				}
 			}
@@ -419,12 +442,12 @@ public class ApplyCalibration implements PlugIn, DialogListener {
 			if (IndexColorCheckbox.getState()) {
 				((TextField)numericChoices.get(0)).setEnabled(true);
 				((TextField)numericChoices.get(1)).setEnabled(true);
-				((Choice)choices.get(3)).setEnabled(true);
+				((Choice)choices.get(1)).setEnabled(true);
 			} 
 			else {
 				((TextField)numericChoices.get(0)).setEnabled(false);
 				((TextField)numericChoices.get(1)).setEnabled(false);
-				((Choice)choices.get(3)).setEnabled(false);
+				((Choice)choices.get(1)).setEnabled(false);
 			}			
 			return true;
 		}

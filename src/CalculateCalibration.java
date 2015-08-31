@@ -184,12 +184,12 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 		double nirPixel = 0.0;
 		double outPixel = 0.0;
 		
-		int maxScaleValue = 0;
+/*		int maxScaleValue = 0;
 		if(imp.getType() == ImagePlus.COLOR_RGB) {
 			maxScaleValue = 255;
 		} else {
 			maxScaleValue = 65535;
-		}
+		}*/
 		
 		if (imp.getNChannels() == 1) {
 			imp = new CompositeImage(imp);
@@ -200,13 +200,12 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 	
 		// Split image into individual bands
 		ImagePlus[] imageBands = ChannelSplitter.split(imp);
-		//ImagePlus visImage = imageBands[visBandIndex];
-		//ImagePlus nirImage = imageBands[nirBandIndex];
-
-		ImagePlus visImage = scaleImage(imageBands[visBandIndex], "visImage", maxScaleValue);
-		ImagePlus nirImage = scaleImage(imageBands[nirBandIndex], "nirImage", maxScaleValue);
-		
+		ImagePlus visImage = scaleImage(imageBands[visBandIndex], "visImage");
+		ImagePlus nirImage = scaleImage(imageBands[nirBandIndex], "nirImage");
+		//visImage.updateAndDraw();
+		//visImage.show();
 		if(removeGamma){
+			//double undoGamma = 1/gamma;
 			for (int y=0; y<nirImage.getHeight(); y++) {
 				for (int x=0; x<nirImage.getWidth(); x++) {	
 					//nirPixel = nirImage.getProcessor().getPixelValue(x, y);
@@ -228,7 +227,8 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 				}
 			}
 		}
-			
+		//visImage.updateAndDraw();
+		//visImage.show();	
 		if(subtractNIR){
 			// Subtract some of the NIR from visible band
 			percentToSubtract = percentToSubtract / 100.0;
@@ -241,7 +241,8 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 			}
 		}
 			
-					
+		//visImage.updateAndDraw();
+		//visImage.show();			
 		// Calculate mean under ROIs for visible band
 		// Code from Calculate_Mean.java written by Wayne Rasband
 		for (int i=0; i<rois.length; i++) {
@@ -293,6 +294,19 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 		visR_Squared = visRegression.getRSquared();
 		IJ.log(("intercept: "+IJ.d2s(visRegressionParams[0],8)));
 		IJ.log(("slope: "+IJ.d2s(visRegressionParams[1],8)));
+		
+		PlotWindow.noGridLines = false;
+		//Plot visPlot = new Plot("Visible band regression", "Image values", "Reflectance values", visImageValues, visRefValues);
+		Plot visPlot = new Plot("Visible band regression", "Image values", "Reflectance values");
+		visPlot.setLimits(0, 1, 0, 1);
+		visPlot.setColor(Color.RED);
+		visPlot.addPoints(visImageValues, visRefValues, Plot.CIRCLE);
+		visPlot.draw();
+		double xVis[] = {0, 1};
+		double yVis[] = {visRegressionParams[0], visRegressionParams[1] + visRegressionParams[0]};
+		visPlot.addPoints(xVis,yVis,PlotWindow.LINE);
+		visPlot.addLabel(0.05, 0.1, "R squared = " + Double.toString(visR_Squared));
+		visPlot.show();
 			
 		CurveFitter nirRegression = new CurveFitter(nirImageValues, nirRefValues);
 		nirRegression.doFit(CurveFitter.STRAIGHT_LINE, true);
@@ -300,6 +314,19 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 		nirR_Squared = nirRegression.getRSquared();
 		IJ.log(("intercept: "+IJ.d2s(nirRegressionParams[0],8)));
 		IJ.log(("slope: "+IJ.d2s(nirRegressionParams[1],8)));
+		
+		PlotWindow.noGridLines = false;
+		Plot nirPlot = new Plot("NIR band regression", "Image values", "Reflectance values");
+		nirPlot.setLimits(0, 1, 0, 1);
+		nirPlot.setColor(Color.RED);
+		nirPlot.addPoints(nirImageValues, nirRefValues, Plot.CIRCLE);
+		nirPlot.draw();
+		double xNir[] = {0, 1};
+		double yNir[] = {nirRegressionParams[0], nirRegressionParams[1] + nirRegressionParams[0]};
+		nirPlot.addPoints(xNir,yNir,PlotWindow.LINE);
+		nirPlot.addLabel(0.05, 0.1, "R squared = " + Double.toString(nirR_Squared));
+		nirPlot.show();
+		
 			
 		try {
 		   	BufferedWriter bufWriter = new BufferedWriter(new FileWriter(outDirectory+logName));
@@ -320,6 +347,9 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 		    bufWriter.write("Percent of NIR to subtract: "+percentToSubtract*100 + "\n");
 		    bufWriter.write("Remove gamma effect:"+removeGamma + "\n");
 		    bufWriter.write("Gamma factor: "+gamma + "\n");
+		    bufWriter.write("\n");
+		    bufWriter.write("Visible band: " + (visBandIndex+1) + "\n");
+		    bufWriter.write("Near-infrared band: " + (nirBandIndex+1) + "\n");
 		    bufWriter.write("\n");
 		   	for (int i=0; i<numLines; i++) {
 		   		bufWriter.write("Mean for target "+(i+1)+" for visible band: "+visImageValues[i]+"\n");
@@ -354,14 +384,18 @@ public class CalculateCalibration implements PlugIn, DialogListener {
 	}
 	
 	// Method to scale bands to 0 - 1
-	public ImagePlus scaleImage(ImagePlus inImage, String imageName, int maxScaleValue) {
+	public ImagePlus scaleImage(ImagePlus inImage, String imageName) {
 			double inPixel=0.0, outPixel = 0.0;
 			ImagePlus newImage;
+			double minVal = inImage.getProcessor().getMin();
+			double maxVal = inImage.getProcessor().getMax();
+			double inverseRange = 1 / (maxVal - minVal);
 			newImage = NewImage.createFloatImage(imageName, inImage.getWidth(), inImage.getHeight(), 1, NewImage.FILL_BLACK);
 			for (int y=0; y<inImage.getHeight(); y++) {
 				for (int x=0; x<inImage.getWidth(); x++) {
 					inPixel = inImage.getPixel(x, y)[0];					
-					outPixel = inPixel / maxScaleValue;
+					//outPixel = inPixel / maxScaleValue;
+					outPixel = inverseRange * (inPixel - minVal);
 					newImage.getProcessor().putPixelValue(x, y, outPixel);
 				}
 			}

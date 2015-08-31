@@ -2,6 +2,7 @@ import ij.*;
 import ij.io.*;
 import ij.gui.*;
 import ij.plugin.*;
+import ij.process.ImageConverter;
 import ij.process.*;
 import ij.gui.DialogListener;
 import java.io.*;
@@ -245,14 +246,52 @@ public class Register_Images implements PlugIn, DialogListener {
 	    	
 	    		rawSourceImage = new ImagePlus(filePair.getFirst().trim());
 	    		rawTargetImage = new ImagePlus(filePair.getSecond().trim());
+	    		
 	    		outFileBase = rawTargetImage.getTitle().replaceFirst("[.][^.]+$", "");
-	    	
-	    		// Make sure images are RGB
-	    		if (rawSourceImage.getType() != ImagePlus.COLOR_RGB | rawTargetImage.getType() != ImagePlus.COLOR_RGB) {
-	    			IJ.error("Images must be Color RGB");
-	    			return;  
+
+	    		// If the input image is 3-band integer image ocnvert it to "COLOR_RGB"
+	    		if (rawSourceImage.getType() != ImagePlus.COLOR_RGB) {
+	    			ImagePlus[] sourceImageBands = ChannelSplitter.split(rawSourceImage);
+	    			ImageConverter redConverter = new ImageConverter(sourceImageBands[0]);
+	    			ImageConverter greenConverter = new ImageConverter(sourceImageBands[1]);
+	    			ImageConverter blueConverter = new ImageConverter(sourceImageBands[2]);
+	    			redConverter.convertToGray8();
+	    			greenConverter.convertToGray8();
+	    			blueConverter.convertToGray8();
+	    			rawSourceImage = NewImage.createRGBImage("ColorImage", rawSourceImage.getWidth(), rawSourceImage.getHeight(), 1, NewImage.FILL_BLACK);
+	    			ImageProcessor sourceImage_ip = rawSourceImage.getProcessor();
+	    			int[] pixels = (int[]) sourceImage_ip.getPixels();
+	    			for (int y=0; y<rawSourceImage.getHeight(); y++) {
+	    	            int offset = y*rawSourceImage.getWidth();
+	    				for (int x=0; x<rawSourceImage.getWidth(); x++) {
+	    					int pos = offset+x;
+	    					pixels[pos] = ((sourceImageBands[0].getProcessor().getPixel(x,y) & 0xff) << 16) + ((sourceImageBands[1].getProcessor().getPixel(x,y) & 0xff) << 8) + (sourceImageBands[2].getProcessor().getPixel(x,y) & 0xff);	 
+	    				}
+	    			}
+	    			rawSourceImage.updateImage();
 	    		}
-	    	
+	    		
+	    		if (rawTargetImage.getType() != ImagePlus.COLOR_RGB) {
+	    			ImagePlus[] targetImageBands = ChannelSplitter.split(rawTargetImage);
+	    			ImageConverter redConverter = new ImageConverter(targetImageBands[0]);
+	    			ImageConverter greenConverter = new ImageConverter(targetImageBands[1]);
+	    			ImageConverter blueConverter = new ImageConverter(targetImageBands[2]);
+	    			redConverter.convertToGray8();
+	    			greenConverter.convertToGray8();
+	    			blueConverter.convertToGray8();
+	    			rawTargetImage = NewImage.createRGBImage("ColorImage", rawSourceImage.getWidth(), rawSourceImage.getHeight(), 1, NewImage.FILL_BLACK);
+	    			ImageProcessor targetImage_ip = rawTargetImage.getProcessor();
+	    			int[] pixels = (int[]) targetImage_ip.getPixels();
+	    			for (int y=0; y<rawSourceImage.getHeight(); y++) {
+	    	            int offset = y*rawSourceImage.getWidth();
+	    				for (int x=0; x<rawSourceImage.getWidth(); x++) {
+	    					int pos = offset+x;
+	    					pixels[pos] = ((targetImageBands[0].getProcessor().getPixel(x,y) & 0xff) << 16) + ((targetImageBands[1].getProcessor().getPixel(x,y) & 0xff) << 8) + (targetImageBands[2].getProcessor().getPixel(x,y) & 0xff);	   
+	    				}
+	    			}
+	    			rawTargetImage.updateImage();
+	    		}
+  	
 	    		rawSourceImage.show();
 	    		rawTargetImage.show();
 	

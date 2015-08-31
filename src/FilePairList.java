@@ -59,6 +59,7 @@ public class FilePairList extends ArrayList<FilePair>{
 				this.add(filePair);
 				line = br.readLine();
 			}
+			br.close();
 		} catch (Exception e) {
 			IJ.error("Error reading file pairs", e.getMessage());
 			return;
@@ -107,7 +108,7 @@ public class FilePairList extends ArrayList<FilePair>{
 			usingExif = false;;
 		}
 		if (!usingExif) {
-			file.lastModified();
+			time = file.lastModified();
 			usingExif = false;
 		}
 		

@@ -45,6 +45,7 @@ public class WriteEXIF {
     	//outputSet = new TiffOutputSet();    
     	JpegImageMetadata jpegMetadata = null;
     	TiffImageMetadata tiffMetadata = null;
+    	String extension = originalJpegFile.getName().substring(originalJpegFile.getName().lastIndexOf(".") + 1, originalJpegFile.getName().length());
     	try {
     		final IImageMetadata metadata = Sanselan.getMetadata(originalJpegFile);
     		if (metadata instanceof JpegImageMetadata) {
@@ -52,7 +53,10 @@ public class WriteEXIF {
     		} else if (metadata instanceof TiffImageMetadata) {
     			tiffMetadata = (TiffImageMetadata)metadata;
     		}
-            if (null != jpegMetadata) {
+    		if (extension.equals("tif".toLowerCase())) {
+    			tempImageFile.renameTo(outImageFile);
+                tempImageFile.delete();
+    		} else if (null != jpegMetadata) {
                 final TiffImageMetadata exif = jpegMetadata.getExif();
                 if (null != exif) {
                     outputSet = exif.getOutputSet();

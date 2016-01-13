@@ -1,5 +1,6 @@
-To download the plugin, LUTs or guide click on the "downloads" directory then click on the file(s) you want to download. When a gray bar
-pops up click on the "View Raw" link and the file will be downloaded.
+Note that the latest version of Fiji is not compatible with these plugins. It is suggested that you use the “Fiji Life-Line version, 2014 November 25” version of Fiji available from the Fiji website: http://fiji.sc/Downloads. You can also download complete Fiji/ImageJ/Photomonitoring Plugin packages by finding the appropriate package in the "downloads" directory of this repository. These packages contain a version of Fiji that works with the plugins and it has the plugin and associated file already installed. 
+
+To download the plugin, LUTs or guide click on the "downloads" directory then click on the file(s) you want to download. When a gray bar pops up click on the "View Raw" link and the file will be downloaded.
 
 Description: The photo monitoring plugins are written to work with Fiji image processing software (http://fiji.sc/wiki/index.php/Fiji) and they will also work with ImageJ the software on which Fiji is based. These plugins are designed to improve the efficiency and effectiveness of using photo monitoring methods. The plugins are support dual-camera setups with one camera acquiring a "normal" visible color digital photo and the other acquiring a near-infrared digitial photo as well as single camera setups such as infrablue cameras.
 
